@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Auto Backup rules for Android 11 and below (API < 31).
+
+    Targets the Room database files (musicflow.db, musicflow.db-shm,
+    musicflow.db-wal) and shared preferences / DataStore files so they
+    are backed up to the user's Google cloud account automatically.
+
+    Exclude transient caches and media downloads — those can be
+    re-fetched or re-downloaded after a restore.
+-->
+<full-backup-content>
+
+    <!-- Include Room database files -->
+    <include domain="database" path="musicflow.db" />
+    <include domain="database" path="musicflow.db-shm" />
+    <include domain="database" path="musicflow.db-wal" />
+
+    <!-- Include DataStore / SharedPreferences -->
+    <include domain="sharedpref" path="." />
+    <include domain="file" path="." />
+
+    <!-- Exclude large transient data -->
+    <exclude domain="cache" path="." />
+    <exclude domain="no_backup" path="." />
+    <exclude domain="external" path="." />
+
+</full-backup-content>

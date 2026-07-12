@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Data extraction rules for Android 12+ (API 31+).
+
+    Uses the newer cloudBackup / deviceTransfer schema to ensure
+    the Room database is included in both cloud backups and
+    device-to-device transfers.
+-->
+<data-extraction-rules>
+
+    <cloud-backup>
+
+        <!-- Include Room database files -->
+        <include domain="database" path="musicflow.db" />
+        <include domain="database" path="musicflow.db-shm" />
+        <include domain="database" path="musicflow.db-wal" />
+
+        <!-- Include shared preferences / DataStore -->
+        <include domain="sharedpref" path="." />
+        <include domain="file" path="." />
+
+        <!-- Exclude transient caches -->
+        <exclude domain="cache" path="." />
+        <exclude domain="no_backup" path="." />
+
+    </cloud-backup>
+
+    <device-transfer>
+
+        <!-- Include Room database files for device-to-device transfer -->
+        <include domain="database" path="musicflow.db" />
+        <include domain="database" path="musicflow.db-shm" />
+        <include domain="database" path="musicflow.db-wal" />
+
+        <!-- Include shared preferences / DataStore -->
+        <include domain="sharedpref" path="." />
+        <include domain="file" path="." />
+
+        <!-- Exclude transient caches -->
+        <exclude domain="cache" path="." />
+        <exclude domain="no_backup" path="." />
+
+    </device-transfer>
+
+</data-extraction-rules>
