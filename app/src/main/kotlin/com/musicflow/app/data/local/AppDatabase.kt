@@ -11,6 +11,8 @@ import com.musicflow.app.data.local.dao.PlaylistDao
 import com.musicflow.app.data.local.dao.QueueDao
 import com.musicflow.app.data.local.dao.SearchHistoryDao
 import com.musicflow.app.data.local.dao.TrackDao
+import com.musicflow.app.data.local.dao.DownloadQueueDao
+import com.musicflow.app.data.local.entity.DownloadQueueEntity
 import com.musicflow.app.data.local.entity.FavoriteEntity
 import com.musicflow.app.data.local.entity.LyricsEntity
 import com.musicflow.app.data.local.entity.OfflineTrackEntity
@@ -59,8 +61,9 @@ import com.musicflow.app.data.local.entity.TrackEntity
         LyricsEntity::class,
         QueueEntity::class,
         OfflineTrackEntity::class,
+        DownloadQueueEntity::class,
     ],
-    version = 5,
+    version = 7,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -78,6 +81,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun queueDao(): QueueDao
 
     abstract fun offlineTrackDao(): OfflineTrackDao
+
+    abstract fun downloadQueueDao(): DownloadQueueDao
 
     companion object {
 

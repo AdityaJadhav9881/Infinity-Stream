@@ -65,6 +65,8 @@ import com.musicflow.app.ui.theme.AccentGreen
 import com.musicflow.app.ui.theme.Black
 import com.musicflow.app.ui.theme.DarkSurface
 import com.musicflow.app.ui.theme.DarkSurfaceVariant
+import com.musicflow.app.ui.theme.MFColors
+import com.musicflow.app.ui.theme.MFTokens
 import com.musicflow.app.ui.theme.OnBackground
 import com.musicflow.app.ui.theme.OnBackgroundVariant
 import com.musicflow.app.data.local.entity.PlaylistEntity
@@ -86,6 +88,8 @@ fun SearchScreen(
     onSuggestionsDismissed: () -> Unit = {},
     onAddToPlaylist: (SearchResult) -> Unit = {},
     onTrackLongPress: (SearchResult) -> Unit = {},
+    onArtistSelected: (SearchResult) -> Unit = {},
+    onAlbumSelected: (SearchResult) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -108,8 +112,8 @@ fun SearchScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 16.dp),
+                .background(MFColors.Background)
+                .padding(horizontal = MFTokens.ScreenHorizontalPadding),
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -346,7 +350,7 @@ fun SearchScreen(
                                     ) { result ->
                                         ArtistResultItem(
                                             result = result,
-                                            onClick = { onTrackSelected(result) },
+                                            onClick = { onArtistSelected(result) },
                                             modifier = Modifier.fillMaxWidth(),
                                         )
                                     }
@@ -358,7 +362,7 @@ fun SearchScreen(
                                     ) { result ->
                                         AlbumResultItem(
                                             result = result,
-                                            onClick = { onTrackSelected(result) },
+                                            onClick = { onAlbumSelected(result) },
                                             modifier = Modifier.fillMaxWidth(),
                                         )
                                     }
@@ -426,21 +430,21 @@ private fun SearchBar(
         placeholder = {
             Text(
                 text = "Search songs, artists...",
-                color = OnBackgroundVariant,
+                color = MFColors.TextTertiary,
             )
         },
         leadingIcon = {
             Icon(
                 imageVector = Icons.Filled.Search,
                 contentDescription = "Search",
-                tint = OnBackgroundVariant,
+                tint = MFColors.TextTertiary,
             )
         },
         trailingIcon = {
             Row {
                 if (isLoading) {
                     CircularProgressIndicator(
-                        color = AccentGreen,
+                        color = MFColors.Accent,
                         modifier = Modifier
                             .size(24.dp)
                             .padding(4.dp),
@@ -458,22 +462,22 @@ private fun SearchBar(
                         Icon(
                             imageVector = Icons.Filled.Clear,
                             contentDescription = "Clear",
-                            tint = OnBackgroundVariant,
+                            tint = MFColors.TextTertiary,
                         )
                     }
                 }
             }
         },
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = DarkSurface,
-            unfocusedContainerColor = DarkSurface,
+            focusedContainerColor = MFColors.Elevated,
+            unfocusedContainerColor = MFColors.Elevated,
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent,
-            focusedTextColor = OnBackground,
-            unfocusedTextColor = OnBackground,
-            cursorColor = AccentGreen,
+            focusedTextColor = MFColors.TextPrimary,
+            unfocusedTextColor = MFColors.TextPrimary,
+            cursorColor = MFColors.Accent,
         ),
-        shape = RoundedCornerShape(12.dp),
+        shape = MFTokens.MediumRadius,
         singleLine = true,
         modifier = modifier,
     )
@@ -492,8 +496,8 @@ private fun SearchResultItem(
 ) {
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(DarkSurface)
+            .clip(MFTokens.MediumRadius)
+            .background(MFColors.Card)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
@@ -515,7 +519,7 @@ private fun SearchResultItem(
                 text = result.title,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = OnBackground,
+                color = MFColors.TextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -525,7 +529,7 @@ private fun SearchResultItem(
             Text(
                 text = result.artist,
                 style = MaterialTheme.typography.bodyMedium,
-                color = OnBackgroundVariant,
+                color = MFColors.TextSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -538,7 +542,7 @@ private fun SearchResultItem(
             Icon(
                 imageVector = Icons.Filled.QueueMusic,
                 contentDescription = "Add to Playlist",
-                tint = OnBackgroundVariant,
+                tint = MFColors.TextTertiary,
                 modifier = Modifier.size(20.dp),
             )
         }
@@ -554,8 +558,8 @@ private fun SearchResultThumbnail(
 ) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(OnBackgroundVariant.copy(alpha = 0.2f)),
+            .clip(RoundedCornerShape(10.dp))
+            .background(MFColors.Elevated),
         contentAlignment = Alignment.Center,
     ) {
         if (thumbnailUrl != null) {
@@ -572,7 +576,7 @@ private fun SearchResultThumbnail(
             Icon(
                 imageVector = Icons.Filled.MusicNote,
                 contentDescription = null,
-                tint = OnBackgroundVariant,
+                tint = MFColors.TextTertiary,
                 modifier = Modifier.size(24.dp),
             )
         }

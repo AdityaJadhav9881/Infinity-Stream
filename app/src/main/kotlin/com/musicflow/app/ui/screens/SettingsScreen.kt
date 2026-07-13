@@ -42,11 +42,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.musicflow.app.data.local.LocalBackupManager
 import com.musicflow.app.ui.theme.AccentGreen
 import com.musicflow.app.ui.theme.DarkSurface
 import com.musicflow.app.ui.theme.ErrorRed
+import com.musicflow.app.ui.theme.MFColors
+import com.musicflow.app.ui.theme.MFTokens
 import com.musicflow.app.ui.theme.OnBackground
 import com.musicflow.app.ui.theme.OnBackgroundVariant
 import com.musicflow.app.utils.ThemeMode
@@ -91,14 +95,14 @@ fun SettingsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(MFColors.Background)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 24.dp),
+            .padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 24.dp),
     ) {
         Text(
             text = "Settings",
             style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground,
+            color = MFColors.TextPrimary,
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -513,12 +517,19 @@ fun SettingsScreen(
                             }
                             coroutineScope.launch {
                                 val success = localBackupManager?.restore()
-                                val msg = if (success == true) {
-                                    "Restored! Restart the app to apply."
+                                if (success == true) {
+                                    Toast.makeText(context, "Restored! Restarting...", Toast.LENGTH_SHORT).show()
+                                    // Restart the app to reconnect Room to the restored database
+                                    val pm = context.packageManager
+                                    val intent = pm.getLaunchIntentForPackage(context.packageName)
+                                    if (intent != null) {
+                                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        context.startActivity(intent)
+                                    }
+                                    Runtime.getRuntime().exit(0)
                                 } else {
-                                    "Restore failed"
+                                    Toast.makeText(context, "Restore failed", Toast.LENGTH_SHORT).show()
                                 }
-                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                             }
                         }
                         .padding(vertical = 10.dp),
@@ -592,7 +603,10 @@ fun SettingsScreen(
 private fun SectionHeader(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleMedium,
-        color = OnBackgroundVariant,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Bold,
+        color = MFColors.TextSecondary,
+        letterSpacing = 0.5.sp,
+        modifier = Modifier.padding(bottom = 8.dp),
     )
 }

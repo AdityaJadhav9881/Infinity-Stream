@@ -11,6 +11,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -25,9 +27,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -48,12 +47,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.musicflow.app.ui.components.MusicFlowBottomNavBar
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.musicflow.app.ui.components.AddToPlaylistDialog
 import com.musicflow.app.ui.components.MainPlayerScreen
 import com.musicflow.app.ui.components.MiniPlayer
-import com.musicflow.app.ui.components.QueueSheet
 import com.musicflow.app.ui.components.SongContextMenu
 import com.musicflow.app.ui.components.SleepTimerDialog
 import com.musicflow.app.ui.components.shareTrack
@@ -67,6 +66,7 @@ import com.musicflow.app.ui.screens.ArtistViewModel
 import com.musicflow.app.ui.screens.EngineInfoViewModel
 import com.musicflow.app.ui.screens.DownloadsScreen
 import com.musicflow.app.ui.screens.HomeScreen
+import com.musicflow.app.ui.screens.HomeViewModel
 import com.musicflow.app.ui.screens.LibraryScreen
 import com.musicflow.app.ui.screens.LibraryFilter
 import com.musicflow.app.ui.screens.LibraryViewModel
@@ -80,6 +80,7 @@ import com.musicflow.app.ui.screens.SettingsScreen
 import com.musicflow.app.data.local.LocalBackupManager
 import com.musicflow.app.ui.theme.AccentGreen
 import com.musicflow.app.ui.theme.DarkSurface
+import com.musicflow.app.ui.theme.MFColors
 import com.musicflow.app.ui.theme.MusicFlowTheme
 import com.musicflow.app.ui.theme.OnBackground
 import com.musicflow.app.ui.theme.OnBackgroundVariant
@@ -275,14 +276,15 @@ private fun MusicFlowApp(
     val engineInfoViewModel: EngineInfoViewModel = hiltViewModel()
     val libraryViewModel: LibraryViewModel = hiltViewModel()
     val playlistViewModel: PlaylistViewModel = hiltViewModel()
+    val homeViewModel: HomeViewModel = hiltViewModel()
 
     val searchUiState by searchViewModel.uiState.collectAsState()
     val playerUiState by playerViewModel.uiState.collectAsState()
     val libraryUiState by libraryViewModel.uiState.collectAsState()
     val playlistUiState by playlistViewModel.uiState.collectAsState()
+    val homeUiState by homeViewModel.uiState.collectAsState()
 
     var showFullPlayer by remember { mutableStateOf(false) }
-    var showQueueSheet by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
@@ -298,6 +300,7 @@ private fun MusicFlowApp(
     val autoDownloadLiked by downloadSettingsManager.autoDownloadLiked.collectAsState(initial = false)
 
     // Helper: toggle favorite AND auto-download if setting is enabled
+    // Uses SharedMusicState as single source of truth - updates propagate to all screens
     fun toggleFavoriteAndMaybeDownload(track: com.musicflow.app.data.remote.SearchResult) {
         libraryViewModel.onToggleFavorite(track.videoId)
         if (autoDownloadLiked) {
@@ -318,34 +321,16 @@ private fun MusicFlowApp(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                Screen.entries.forEach { screen ->
-                    NavigationBarItem(
-                        selected = currentRoute == screen.route,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = if (currentRoute == screen.route) screen.selectedIcon else screen.unselectedIcon,
-                                contentDescription = screen.label,
-                            )
-                        },
-                        label = { Text(text = screen.label, style = MaterialTheme.typography.labelSmall) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = AccentGreen,
-                            selectedTextColor = AccentGreen,
-                            unselectedIconColor = OnBackgroundVariant,
-                            unselectedTextColor = OnBackgroundVariant,
-                            indicatorColor = Color.Transparent,
-                        ),
-                    )
-                }
-            }
+            MusicFlowBottomNavBar(
+                currentRoute = currentRoute,
+                onNavigate = { route ->
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+            )
         },
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
@@ -354,8 +339,8 @@ private fun MusicFlowApp(
                     NavHost(navController = navController, startDestination = Screen.Home.route) {
                         composable(Screen.Home.route) {
                             HomeScreen(
-                                recentTracks = libraryUiState.items.map { it.track },
-                                playlists = libraryUiState.playlists,
+                                recentTracks = homeUiState.continueListening,
+                                playlists = homeUiState.playlists,
                                 onTrackSelected = { track ->
                                     playerViewModel.playFromLibrary(track.songId, track.title, track.artist, track.artworkUrl)
                                 },
@@ -388,6 +373,13 @@ private fun MusicFlowApp(
                                 onDownloadsClick = {
                                     navController.navigate(DOWNLOADS_ROUTE)
                                 },
+                                onRecentlyPlayedSeeAll = {
+                                    navController.navigate("library?filter=RECENT") {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
                                 onMoodMixClick = { query ->
                                     playerViewModel.playMoodMix(query)
                                 },
@@ -401,6 +393,12 @@ private fun MusicFlowApp(
                                 isNetworkAvailable = playerUiState.isNetworkAvailable,
                                 notifications = homeNotifications,
                                 onClearNotifications = { homeNotifications.clear() },
+                                trendingTracks = homeUiState.trending,
+                                isTrendingLoading = homeUiState.isTrendingLoading,
+                                trendingError = homeUiState.trendingError,
+                                onRetryTrending = { homeViewModel.loadTrending() },
+                                favoriteTracks = homeUiState.favoriteTracks,
+                                playlistTracks = homeUiState.playlistTracks,
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }
@@ -429,6 +427,22 @@ private fun MusicFlowApp(
                                     contextMenuTrack = result
                                     showContextMenu = true
                                 },
+                                onArtistSelected = { result ->
+                                    coroutineScope.launch {
+                                        val artistBrowseId = searchViewModel.findArtistBrowseId(result.artist)
+                                        if (artistBrowseId != null) {
+                                            navController.navigate("artist/$artistBrowseId")
+                                        }
+                                    }
+                                },
+                                onAlbumSelected = { result ->
+                                    coroutineScope.launch {
+                                        val albumBrowseId = searchViewModel.findAlbumBrowseId(result.title)
+                                        if (albumBrowseId != null) {
+                                            navController.navigate("album/$albumBrowseId")
+                                        }
+                                    }
+                                },
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }
@@ -456,6 +470,7 @@ private fun MusicFlowApp(
                                 onAlbumSelected = { albumBrowseId ->
                                     navController.navigate("album/$albumBrowseId")
                                 },
+                                onRetry = { artistViewModel.loadArtist(browseId) },
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }
@@ -480,13 +495,11 @@ private fun MusicFlowApp(
                                         if (audioUrl != null) playerViewModel.playTrack(result, audioUrl)
                                     }
                                 },
+                                onRetry = { albumViewModel.loadAlbum(browseId) },
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }
                         composable(Screen.Library.route) {
-                            LaunchedEffect(Unit) {
-                                libraryViewModel.onFilterChange(LibraryFilter.ALL)
-                            }
                             LibraryScreen(
                                 uiState = libraryUiState,
                                 onSearchQueryChange = libraryViewModel::onSearchQueryChange,
@@ -703,8 +716,8 @@ private fun MusicFlowApp(
                 }
                 AnimatedVisibility(
                     visible = playerUiState.currentTrack != null && !showFullPlayer,
-                    enter = slideInVertically(initialOffsetY = { it }),
-                    exit = slideOutVertically(targetOffsetY = { it }),
+                    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+                    exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 3 }),
                 ) {
                     MiniPlayer(
                         track = playerUiState.currentTrack,
@@ -724,11 +737,14 @@ private fun MusicFlowApp(
             }
             if (showFullPlayer && playerUiState.currentTrack != null) {
                 Box(
-                    modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() },
-                        onClick = {}
-                    ),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MFColors.Background)
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() },
+                            onClick = {}
+                        ),
                 ) {
                     MainPlayerScreen(
                         track = playerUiState.currentTrack,
@@ -752,7 +768,6 @@ private fun MusicFlowApp(
                                         thumbnailUrl = track.artworkUrl,
                                     )
                                 )
-                                playerViewModel.toggleLikeCurrentTrack()
                             }
                         },
                         isShuffleOn = playerUiState.isShuffleOn,
@@ -799,21 +814,6 @@ private fun MusicFlowApp(
                         playlistViewModel.createPlaylist(name)
                         showCreatePlaylistDialog = false
                     },
-                )
-            }
-            if (showQueueSheet) {
-                QueueSheet(
-                    sheetState = rememberModalBottomSheetState(),
-                    currentTrack = playerUiState.currentTrack,
-                    upcomingTracks = playerUiState.upcomingTracks,
-                    isShuffleOn = playerUiState.isShuffleOn,
-                    loopMode = playerUiState.loopMode,
-                    onDismiss = { showQueueSheet = false },
-                    onTrackSelected = playerViewModel::skipToQueueItem,
-                    onShuffleToggle = playerViewModel::shuffleQueue,
-                    onLoopToggle = playerViewModel::toggleLoop,
-                    onMoveItem = playerViewModel::moveQueueItem,
-                    onRemoveFromQueue = playerViewModel::removeFromQueue,
                 )
             }
             if (showContextMenu && contextMenuTrack != null) {

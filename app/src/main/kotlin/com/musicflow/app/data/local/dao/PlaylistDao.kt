@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.musicflow.app.data.local.entity.PlaylistEntity
 import com.musicflow.app.data.local.entity.PlaylistTrackMap
 import com.musicflow.app.data.local.entity.TrackEntity
@@ -51,6 +52,12 @@ interface PlaylistDao {
 
     @Query("SELECT COUNT(*) FROM playlist_track_map WHERE playlist_id = :playlistId")
     suspend fun getPlaylistTrackCount(playlistId: Long): Int
+
+    @Transaction
+    suspend fun addTrackToPlaylistAtomic(playlistId: Long, songId: String) {
+        val count = getPlaylistTrackCount(playlistId)
+        addTrackToPlaylist(PlaylistTrackMap(playlistId = playlistId, songId = songId, position = count))
+    }
 
     // ── Combined queries ───────────────────────────────────────────
 

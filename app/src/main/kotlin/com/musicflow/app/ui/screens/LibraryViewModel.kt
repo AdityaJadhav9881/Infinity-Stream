@@ -2,6 +2,7 @@ package com.musicflow.app.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.musicflow.app.data.SharedMusicState
 import com.musicflow.app.data.local.dao.FavoriteDao
 import com.musicflow.app.data.local.dao.PlaylistDao
 import com.musicflow.app.data.local.dao.TrackDao
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -27,6 +29,7 @@ class LibraryViewModel @Inject constructor(
     private val favoriteDao: FavoriteDao,
     private val playlistDao: PlaylistDao,
     private val offlineDownloadManager: OfflineDownloadManager,
+    private val sharedMusicState: SharedMusicState,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState())
@@ -37,40 +40,59 @@ class LibraryViewModel @Inject constructor(
     }
 
     private fun observeAll() {
-        val tracksFlow = trackDao.observeAllTracks()
-        val favoritesFlow = favoriteDao.observeAllFavorites()
-        val playlistsFlow = playlistDao.observeAllPlaylists()
-        val offlineFlow = offlineDownloadManager.getOfflineTracks()
-
-        combine(tracksFlow, favoritesFlow, playlistsFlow, offlineFlow) { tracks, favorites, playlists, offline ->
-            val favoriteIds = favorites.map { it.songId }.toSet()
-            val libraryItems = tracks.map { track ->
-                LibraryItem(track = track, isFavorite = track.songId in favoriteIds)
+        // Observe all tracks
+        sharedMusicState.allTracks
+            .onEach { tracks ->
+                _uiState.update { state ->
+                    val items = tracks.map { track ->
+                        LibraryItem(
+                            track = track,
+                            isFavorite = track.songId in sharedMusicState.favoriteIds.value,
+                        )
+                    }
+                    state.copy(
+                        allItems = items,
+                        items = applyFilteredList(items, state.searchQuery, state.selectedFilter),
+                        isLoading = false,
+                    )
+                }
             }
+            .launchIn(viewModelScope)
 
-            // Most played = all tracks sorted by recency (most recently added first)
-            val mostPlayed = libraryItems.sortedByDescending { it.track.title }
-
-            LibraryUiState(
-                allItems = libraryItems,
-                items = libraryItems,
-                playlists = playlists,
-                offlineTracks = offline,
-                offlineStorageUsedBytes = offline.sumOf { it.fileSize },
-                isLoading = false,
-            )
-        }.onEach { state ->
-            _uiState.update { current ->
-                current.copy(
-                    allItems = state.allItems,
-                    items = applyFilteredList(state.items, current.searchQuery, current.selectedFilter),
-                    playlists = state.playlists,
-                    offlineTracks = state.offlineTracks,
-                    offlineStorageUsedBytes = state.offlineStorageUsedBytes,
-                    isLoading = false,
-                )
+        // Observe favorites
+        sharedMusicState.favoriteIds
+            .onEach { favIds ->
+                _uiState.update { state ->
+                    val items = state.allItems.map { item ->
+                        item.copy(isFavorite = item.track.songId in favIds)
+                    }
+                    state.copy(
+                        allItems = items,
+                        items = applyFilteredList(items, state.searchQuery, state.selectedFilter),
+                    )
+                }
             }
-        }.launchIn(viewModelScope)
+            .launchIn(viewModelScope)
+
+        // Observe playlists
+        sharedMusicState.playlists
+            .onEach { playlists ->
+                _uiState.update { it.copy(playlists = playlists) }
+            }
+            .launchIn(viewModelScope)
+
+        // Observe offline tracks
+        offlineDownloadManager.getOfflineTracks()
+            .distinctUntilChanged()
+            .onEach { offlineTracks ->
+                _uiState.update { state ->
+                    state.copy(
+                        offlineTracks = offlineTracks,
+                        offlineStorageUsedBytes = offlineTracks.sumOf { it.fileSize },
+                    )
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     fun onSearchQueryChange(query: String) {
@@ -92,11 +114,7 @@ class LibraryViewModel @Inject constructor(
     }
 
     fun onToggleFavorite(songId: String) {
-        viewModelScope.launch {
-            val isFav = favoriteDao.isFavorite(songId)
-            if (isFav) favoriteDao.removeFavorite(songId)
-            else favoriteDao.addFavorite(FavoriteEntity(songId = songId))
-        }
+        sharedMusicState.toggleFavorite(songId)
     }
 
     fun onDeleteTrack(songId: String) {
@@ -115,11 +133,16 @@ class LibraryViewModel @Inject constructor(
         var result = when (filter) {
             LibraryFilter.ALL -> items
             LibraryFilter.FAVORITES -> items.filter { it.isFavorite }
-            LibraryFilter.RECENT -> items.takeLast(20).reversed()
-            LibraryFilter.DOWNLOADS -> items // Downloads filtered by offline state
-            LibraryFilter.PLAYLISTS -> items // Playlists shown in own section
+            LibraryFilter.RECENT -> {
+                items.filter { it.track.lastPlayedAt > 0 }
+                    .sortedByDescending { it.track.lastPlayedAt }
+            }
+            LibraryFilter.DOWNLOADS -> items
+            LibraryFilter.PLAYLISTS -> items
             LibraryFilter.ALBUMS -> items
             LibraryFilter.ARTISTS -> items
+            LibraryFilter.TITLE_ASC -> items.sortedBy { it.track.title.lowercase() }
+            LibraryFilter.ARTIST_ASC -> items.sortedBy { it.track.artist.lowercase() }
         }
         if (query.isNotBlank()) {
             val lower = query.lowercase()
@@ -140,6 +163,8 @@ enum class LibraryFilter(val label: String) {
     PLAYLISTS("Playlists"),
     ALBUMS("Albums"),
     ARTISTS("Artists"),
+    TITLE_ASC("Title A-Z"),
+    ARTIST_ASC("Artist A-Z"),
 }
 
 data class LibraryItem(

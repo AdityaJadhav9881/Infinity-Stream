@@ -26,4 +26,7 @@ data class PlaylistEntity(
 
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(name = "updated_at", defaultValue = "0")
+    val updatedAt: Long = System.currentTimeMillis(),
 )

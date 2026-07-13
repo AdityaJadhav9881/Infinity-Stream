@@ -86,6 +86,8 @@ import com.musicflow.app.ui.theme.AccentGreenLight
 import com.musicflow.app.ui.theme.DarkSurface
 import com.musicflow.app.ui.theme.DarkSurfaceVariant
 import com.musicflow.app.ui.theme.ErrorRed
+import com.musicflow.app.ui.theme.MFColors
+import com.musicflow.app.ui.theme.MFTokens
 import com.musicflow.app.ui.theme.OnBackground
 import com.musicflow.app.ui.theme.OnBackgroundVariant
 
@@ -109,12 +111,12 @@ fun LibraryScreen(
     var showSortMenu by remember { mutableStateOf(false) }
 
     LazyColumn(
-        modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        modifier = modifier.fillMaxSize().background(MFColors.Background),
         contentPadding = PaddingValues(bottom = 100.dp),
     ) {
         // ── Header ────────────────────────────────────────────────
         item(key = "header") {
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+            Column(modifier = Modifier.padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 16.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -123,8 +125,9 @@ fun LibraryScreen(
                     Text(
                         text = "Your Library",
                         fontSize = 30.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = OnBackground,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MFColors.TextPrimary,
+                        letterSpacing = (-0.5).sp,
                     )
                     Row {
                         Box {
@@ -132,22 +135,38 @@ fun LibraryScreen(
                                 Icon(
                                     imageVector = Icons.Filled.Sort,
                                     contentDescription = "Sort",
-                                    tint = OnBackgroundVariant,
+                                    tint = MFColors.TextSecondary,
                                     modifier = Modifier.size(22.dp),
                                 )
                             }
                             DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
                                 DropdownMenuItem(
                                     text = { Text("Recently Added") },
-                                    onClick = { showSortMenu = false },
+                                    onClick = {
+                                        onFilterChange(LibraryFilter.ALL)
+                                        showSortMenu = false
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Recently Played") },
+                                    onClick = {
+                                        onFilterChange(LibraryFilter.RECENT)
+                                        showSortMenu = false
+                                    },
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Title A-Z") },
-                                    onClick = { showSortMenu = false },
+                                    onClick = {
+                                        onFilterChange(LibraryFilter.TITLE_ASC)
+                                        showSortMenu = false
+                                    },
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Artist A-Z") },
-                                    onClick = { showSortMenu = false },
+                                    onClick = {
+                                        onFilterChange(LibraryFilter.ARTIST_ASC)
+                                        showSortMenu = false
+                                    },
                                 )
                             }
                         }
@@ -161,22 +180,22 @@ fun LibraryScreen(
             TextField(
                 value = uiState.searchQuery,
                 onValueChange = onSearchQueryChange,
-                placeholder = { Text("Search your library...", color = OnBackgroundVariant) },
+                placeholder = { Text("Search your library...", color = MFColors.TextTertiary) },
                 leadingIcon = {
-                    Icon(imageVector = Icons.Filled.Search, contentDescription = null, tint = OnBackgroundVariant, modifier = Modifier.size(20.dp))
+                    Icon(imageVector = Icons.Filled.Search, contentDescription = null, tint = MFColors.TextTertiary, modifier = Modifier.size(20.dp))
                 },
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = DarkSurfaceVariant,
-                    unfocusedContainerColor = DarkSurfaceVariant,
+                    focusedContainerColor = MFColors.Elevated,
+                    unfocusedContainerColor = MFColors.Elevated,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = OnBackground,
-                    unfocusedTextColor = OnBackground,
-                    cursorColor = AccentGreen,
+                    focusedTextColor = MFColors.TextPrimary,
+                    unfocusedTextColor = MFColors.TextPrimary,
+                    cursorColor = MFColors.Accent,
                 ),
-                shape = RoundedCornerShape(16.dp),
+                shape = MFTokens.MediumRadius,
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = MFTokens.ScreenHorizontalPadding),
             )
         }
 
@@ -184,9 +203,9 @@ fun LibraryScreen(
         item(key = "filters") {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                items(LibraryFilter.entries) { filter ->
+                items(LibraryFilter.entries.filter { it != LibraryFilter.TITLE_ASC && it != LibraryFilter.ARTIST_ASC }) { filter ->
                     val isSelected = uiState.selectedFilter == filter
                     FilterChip(
                         selected = isSelected,
@@ -195,16 +214,22 @@ fun LibraryScreen(
                             Text(
                                 text = filter.label,
                                 fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                             )
                         },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = AccentGreen,
-                            selectedLabelColor = Color.Black,
-                            containerColor = DarkSurfaceVariant,
-                            labelColor = OnBackgroundVariant,
+                            selectedContainerColor = MFColors.Accent,
+                            selectedLabelColor = MFColors.TextOnAccent,
+                            containerColor = MFColors.Elevated,
+                            labelColor = MFColors.TextSecondary,
                         ),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(100.dp),
+                        border = FilterChipDefaults.filterChipBorder(
+                            borderColor = MFColors.Divider,
+                            selectedBorderColor = MFColors.Accent.copy(alpha = 0.3f),
+                            enabled = true,
+                            selected = isSelected,
+                        ),
                     )
                 }
             }
@@ -213,8 +238,10 @@ fun LibraryScreen(
         // ── Filter-Specific Content ───────────────────────────────
         when (uiState.selectedFilter) {
             LibraryFilter.ALL -> {
-                // Continue Listening
-                val recentTracks = uiState.items.take(10)
+                // Continue Listening - show recently played tracks
+                val recentTracks = uiState.items.filter { it.track.lastPlayedAt > 0 }
+                    .sortedByDescending { it.track.lastPlayedAt }
+                    .take(10)
                 if (recentTracks.isNotEmpty()) {
                     item(key = "continue_listening_header") {
                         SectionTitle("Continue Listening")
@@ -266,26 +293,26 @@ fun LibraryScreen(
                 if (uiState.offlineTracks.isNotEmpty()) {
                     item(key = "downloads_header") {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
                                 text = "Downloads",
                                 fontSize = 20.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = OnBackground,
+                                fontWeight = FontWeight.Bold,
+                                color = MFColors.TextPrimary,
                             )
                             Text(
                                 text = formatFileSize(uiState.offlineStorageUsedBytes),
                                 fontSize = 13.sp,
-                                color = AccentGreen,
+                                color = MFColors.Accent,
                                 fontWeight = FontWeight.Medium,
                             )
                         }
                     }
                     item(key = "downloads_list") {
-                        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                        Column(modifier = Modifier.padding(horizontal = MFTokens.ScreenHorizontalPadding)) {
                             uiState.offlineTracks.take(5).forEach { offlineTrack ->
                                 OfflineTrackRow(
                                     track = offlineTrack,
@@ -297,13 +324,48 @@ fun LibraryScreen(
                     }
                 }
 
-                // Most Played
-                val mostPlayed = uiState.items.take(10)
+                // Most Played - sort by play count
+                val mostPlayed = uiState.items.filter { it.track.playCount > 0 }
+                    .sortedByDescending { it.track.playCount }
+                    .take(10)
                 if (mostPlayed.isNotEmpty()) {
                     item(key = "most_played_header") {
                         SectionTitle("Most Played")
                     }
                     itemsIndexed(mostPlayed) { index, item ->
+                        MostPlayedRow(
+                            track = item.track,
+                            rank = index + 1,
+                            isFavorite = item.isFavorite,
+                            onClick = { onTrackSelected(item.track) },
+                            onLongClick = { onTrackLongPress(item.track) },
+                            onToggleFavorite = { onToggleFavorite(item.track.songId) },
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                        )
+                    }
+                }
+            }
+
+            LibraryFilter.TITLE_ASC, LibraryFilter.ARTIST_ASC -> {
+                if (uiState.items.isEmpty()) {
+                    item(key = "empty_sorted") {
+                        FilterEmptyState(
+                            icon = Icons.Filled.MusicNote,
+                            title = "No tracks",
+                            subtitle = "Songs you play will appear here.",
+                        )
+                    }
+                } else {
+                    item(key = "sorted_count") {
+                        Text(
+                            text = "${uiState.items.size} tracks",
+                            fontSize = 14.sp,
+                            color = AccentGreen,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                        )
+                    }
+                    itemsIndexed(uiState.items) { index, item ->
                         MostPlayedRow(
                             track = item.track,
                             rank = index + 1,
@@ -352,7 +414,8 @@ fun LibraryScreen(
             }
 
             LibraryFilter.RECENT -> {
-                val recentTracks = uiState.items.takeLast(20).reversed()
+                val recentTracks = uiState.items.filter { it.track.lastPlayedAt > 0 }
+                    .sortedByDescending { it.track.lastPlayedAt }
                 if (recentTracks.isEmpty()) {
                     item(key = "empty_recent") {
                         FilterEmptyState(
@@ -497,9 +560,10 @@ private fun SectionTitle(title: String) {
     Text(
         text = title,
         fontSize = 20.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = OnBackground,
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+        fontWeight = FontWeight.Bold,
+        color = MFColors.TextPrimary,
+        letterSpacing = (-0.4).sp,
+        modifier = Modifier.padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 12.dp),
     )
 }
 
@@ -513,8 +577,8 @@ private fun ContinueListeningCard(
     Column(
         modifier = Modifier
             .width(140.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(DarkSurface)
+            .clip(MFTokens.MediumRadius)
+            .background(MFColors.Card)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -536,11 +600,11 @@ private fun ContinueListeningCard(
             } else {
                 Box(
                     modifier = Modifier.fillMaxSize().background(
-                        Brush.verticalGradient(listOf(AccentGreen.copy(alpha = 0.3f), AccentGreen.copy(alpha = 0.08f)))
+                        Brush.verticalGradient(listOf(MFColors.Accent.copy(alpha = 0.3f), MFColors.Accent.copy(alpha = 0.08f)))
                     ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = AccentGreen, modifier = Modifier.size(32.dp))
+                    Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = MFColors.Accent, modifier = Modifier.size(32.dp))
                 }
             }
         }
@@ -549,7 +613,7 @@ private fun ContinueListeningCard(
             text = track.title,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
-            color = OnBackground,
+            color = MFColors.TextPrimary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth(),
@@ -557,7 +621,7 @@ private fun ContinueListeningCard(
         Text(
             text = track.artist,
             fontSize = 10.sp,
-            color = OnBackgroundVariant,
+            color = MFColors.TextSecondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth(),
@@ -571,10 +635,10 @@ private fun LikedSongsCard(count: Int, onClick: () -> Unit) {
         modifier = Modifier
             .width(140.dp)
             .height(176.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(MFTokens.MediumRadius)
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(AccentGreen, AccentGreen.copy(alpha = 0.7f))
+                    colors = listOf(MFColors.Accent, MFColors.Accent.copy(alpha = 0.7f))
                 )
             )
             .clickable(onClick = onClick)
@@ -584,7 +648,7 @@ private fun LikedSongsCard(count: Int, onClick: () -> Unit) {
             Icon(
                 imageVector = Icons.Filled.Favorite,
                 contentDescription = null,
-                tint = Color.Black,
+                tint = MFColors.TextOnAccent,
                 modifier = Modifier.size(28.dp),
             )
             Column {
@@ -592,12 +656,12 @@ private fun LikedSongsCard(count: Int, onClick: () -> Unit) {
                     text = "Liked Songs",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black,
+                    color = MFColors.TextOnAccent,
                 )
                 Text(
                     text = "$count tracks",
                     fontSize = 11.sp,
-                    color = Color.Black.copy(alpha = 0.7f),
+                    color = MFColors.TextOnAccent.copy(alpha = 0.7f),
                 )
             }
         }
@@ -610,8 +674,8 @@ private fun CreatePlaylistCard(onClick: () -> Unit, modifier: Modifier = Modifie
         modifier = modifier
             .width(140.dp)
             .height(176.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(DarkSurfaceVariant)
+            .clip(MFTokens.MediumRadius)
+            .background(MFColors.Elevated)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -620,13 +684,13 @@ private fun CreatePlaylistCard(onClick: () -> Unit, modifier: Modifier = Modifie
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(AccentGreen.copy(alpha = 0.15f)),
+                    .background(MFColors.Accent.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(imageVector = Icons.Filled.Add, contentDescription = null, tint = AccentGreen, modifier = Modifier.size(24.dp))
+                Icon(imageVector = Icons.Filled.Add, contentDescription = null, tint = MFColors.Accent, modifier = Modifier.size(24.dp))
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "Create", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = OnBackgroundVariant)
+            Text(text = "Create", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MFColors.TextSecondary)
         }
     }
 }
@@ -637,8 +701,8 @@ private fun PlaylistGridCard(playlist: PlaylistEntity, onClick: () -> Unit) {
         modifier = Modifier
             .width(140.dp)
             .height(176.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(DarkSurface)
+            .clip(MFTokens.MediumRadius)
+            .background(MFColors.Card)
             .clickable(onClick = onClick)
             .padding(14.dp),
     ) {
@@ -647,24 +711,24 @@ private fun PlaylistGridCard(playlist: PlaylistEntity, onClick: () -> Unit) {
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(AccentGreen.copy(alpha = 0.12f)),
+                    .background(MFColors.Accent.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(imageVector = Icons.Filled.PlaylistPlay, contentDescription = null, tint = AccentGreen, modifier = Modifier.size(24.dp))
+                Icon(imageVector = Icons.Filled.PlaylistPlay, contentDescription = null, tint = MFColors.Accent, modifier = Modifier.size(24.dp))
             }
             Column {
                 Text(
                     text = playlist.name,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = OnBackground,
+                    color = MFColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = "Playlist",
                     fontSize = 11.sp,
-                    color = OnBackgroundVariant,
+                    color = MFColors.TextSecondary,
                 )
             }
         }

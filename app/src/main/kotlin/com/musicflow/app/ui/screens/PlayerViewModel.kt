@@ -11,6 +11,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.musicflow.app.data.TrackMetadata
+import com.musicflow.app.data.SharedMusicState
 import com.musicflow.app.data.local.dao.FavoriteDao
 import com.musicflow.app.data.local.dao.PlaylistDao
 import com.musicflow.app.data.local.dao.TrackDao
@@ -52,6 +53,7 @@ class PlayerViewModel @Inject constructor(
     private val queuePersistenceManager: QueuePersistenceManager,
     private val offlineDownloadManager: OfflineDownloadManager,
     private val networkMonitor: NetworkMonitor,
+    private val sharedMusicState: SharedMusicState,
 ) : AndroidViewModel(application) {
 
     companion object {
@@ -84,6 +86,15 @@ class PlayerViewModel @Inject constructor(
             networkMonitor.observe.collect { online ->
                 _uiState.update { it.copy(isNetworkAvailable = online) }
                 Log.i(TAG, "Network state: ${if (online) "ONLINE" else "OFFLINE"}")
+            }
+        }
+        // Observe favorites from SharedMusicState to keep isCurrentTrackLiked in sync
+        viewModelScope.launch {
+            sharedMusicState.favoriteIds.collect { favIds ->
+                val track = _uiState.value.currentTrack
+                if (track != null) {
+                    _uiState.update { it.copy(isCurrentTrackLiked = track.songId in favIds) }
+                }
             }
         }
     }
@@ -234,13 +245,13 @@ class PlayerViewModel @Inject constructor(
 
     /**
      * Toggles the like/favorite status of the current track.
+     * Uses SharedMusicState as single source of truth.
      */
     fun toggleLikeCurrentTrack() {
         val track = _uiState.value.currentTrack ?: return
         viewModelScope.launch {
-            val isFav = favoriteDao.isFavorite(track.songId)
-            if (isFav) favoriteDao.removeFavorite(track.songId)
-            else favoriteDao.addFavorite(FavoriteEntity(songId = track.songId))
+            val isFav = sharedMusicState.isFavorite(track.songId)
+            sharedMusicState.toggleFavorite(track.songId)
             _uiState.update { it.copy(isCurrentTrackLiked = !isFav) }
         }
     }
@@ -250,7 +261,7 @@ class PlayerViewModel @Inject constructor(
      */
     private suspend fun checkCurrentTrackLiked() {
         val track = _uiState.value.currentTrack ?: return
-        val isLiked = favoriteDao.isFavorite(track.songId)
+        val isLiked = sharedMusicState.isFavorite(track.songId)
         _uiState.update { it.copy(isCurrentTrackLiked = isLiked) }
     }
 
@@ -939,24 +950,42 @@ class PlayerViewModel @Inject constructor(
     }
 
     /**
-     * Saves a track to the Room library database.
+     * Saves a track to the Room library database AND marks it as recently played.
      * Called automatically when a track starts playing.
+     * Uses SharedMusicState for single-source-of-truth updates.
      */
     private fun saveTrackToLibrary(metadata: TrackMetadata) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                trackDao.upsertTrack(
-                    TrackEntity(
-                        songId = metadata.songId,
-                        title = metadata.title,
-                        artist = metadata.artist,
-                        artworkUrl = metadata.artworkUrl,
-                    )
+                val existingTrack = trackDao.getTrackBySongId(metadata.songId)
+                val track = TrackEntity(
+                    songId = metadata.songId,
+                    title = metadata.title,
+                    artist = metadata.artist,
+                    artworkUrl = metadata.artworkUrl,
+                    addedAt = existingTrack?.addedAt ?: System.currentTimeMillis(),
+                    playCount = (existingTrack?.playCount ?: 0) + 1,
+                    lastPlayedAt = System.currentTimeMillis(),
                 )
+                trackDao.upsertTrack(track)
                 Log.d(TAG, "Saved to library: ${metadata.title}")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to save to library: ${e.message}")
             }
+        }
+    }
+
+    /**
+     * Saves the current playback position for the current track.
+     * Enables "Continue Listening" to show accurate progress bar.
+     */
+    private fun saveCurrentPlaybackPosition() {
+        val controller = mediaController ?: return
+        val track = _uiState.value.currentTrack ?: return
+        val position = controller.currentPosition
+        val duration = controller.duration
+        if (position > 0 && duration > 0) {
+            sharedMusicState.savePlaybackPosition(track.songId, position, duration)
         }
     }
 
@@ -1181,6 +1210,10 @@ class PlayerViewModel @Inject constructor(
     private inner class PlayerListener : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             updateStateFromController()
+            // Save position when paused
+            if (!isPlaying) {
+                saveCurrentPlaybackPosition()
+            }
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -1188,6 +1221,9 @@ class PlayerViewModel @Inject constructor(
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            // Save the previous track's playback position before switching
+            saveCurrentPlaybackPosition()
+
             val id = mediaItem?.mediaId ?: ""
             if (id.isNotEmpty()) {
                 MusicPlaybackService.currentSongId = id
@@ -1241,4 +1277,6 @@ data class PlayerUiState(
     val downloadError: String? = null,
     val isCurrentTrackLiked: Boolean = false,
     val isNetworkAvailable: Boolean = true,
+    val downloadQueueSize: Int = 0,
+    val activeDownloads: Int = 0,
 )

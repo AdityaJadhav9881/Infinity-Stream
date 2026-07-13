@@ -55,4 +55,30 @@ data class TrackEntity(
     /** Track duration in milliseconds. Defaults to 0 if unknown. */
     @ColumnInfo(name = "duration_ms")
     val durationMs: Long = 0L,
-)
+
+    /** Epoch millis when this track was last played. Used for "Recently Played" sorting. */
+    @ColumnInfo(name = "last_played_at", defaultValue = "0")
+    val lastPlayedAt: Long = 0L,
+
+    /** Epoch millis when this track was first added to the library. */
+    @ColumnInfo(name = "added_at", defaultValue = "0")
+    val addedAt: Long = System.currentTimeMillis(),
+
+    /** Play count for "Most Played" ranking. */
+    @ColumnInfo(name = "play_count", defaultValue = "0")
+    val playCount: Int = 0,
+
+    /** Last played position in milliseconds — used for "Continue Listening" progress bar. */
+    @ColumnInfo(name = "last_played_position_ms", defaultValue = "0")
+    val lastPlayedPositionMs: Long = 0L,
+
+    /** Duration in milliseconds at time of last play — needed to compute progress %. */
+    @ColumnInfo(name = "last_played_duration_ms", defaultValue = "0")
+    val lastPlayedDurationMs: Long = 0L,
+) {
+    /** Progress as 0f..1f derived from position and duration. */
+    val playbackProgress: Float
+        get() = if (lastPlayedDurationMs > 0) {
+            (lastPlayedPositionMs.toFloat() / lastPlayedDurationMs.toFloat()).coerceIn(0f, 1f)
+        } else 0f
+}

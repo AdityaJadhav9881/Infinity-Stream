@@ -1,124 +1,217 @@
 package com.musicflow.app.ui.theme
 
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 /**
- * Strict dark-mode color palette for MusicFlow.
+ * MusicFlow Design System — Color Tokens
  *
- * All colors are designed for OLED/AMOLED displays with true blacks
- * (#000000) for power savings and visual consistency.
+ * Premium dark-only palette with layered surfaces.
+ * No pure black. Every surface has depth and intention.
  *
- * ## Palette Structure
- * - **Background/Surface**: Deep blacks and dark grays
- * - **On-Background/On-Surface**: Light grays for readable text
- * - **Primary/Accent**: Vibrant green for play buttons, progress bars
- * - **Error**: Muted red for destructive actions
+ * ## Surface Hierarchy
+ * - Background (#0B0B0E) — deepest layer
+ * - Card (#15161A) — resting surface
+ * - Elevated (#1B1C20) — interactive surface
+ * - Overlay (#22242A) — highest layer
  *
- * Dynamic theming is disabled to enforce this aesthetic across all devices.
+ * ## Accent
+ * Modern emerald green with dynamic variant support.
+ * Dynamic accent colors can be generated from album artwork.
  */
+object MFColors {
+    // ── Background Layers ───────────────────────────────────────────────
 
-// ── Backgrounds & Surfaces ─────────────────────────────────────────────
+    /** Deepest background layer — warm dark, never pure black. */
+    val Background = Color(0xFF0B0B0E)
 
-/** Premium dark background — slightly warmer than pure black. */
-val Black = Color(0xFF0D0D0D)
+    /** Card surface — resting state for content blocks. */
+    val Card = Color(0xFF15161A)
 
-/** Dark surface for cards, sheets, and elevated components. */
-val DarkSurface = Color(0xFF161616)
+    /** Elevated surface — interactive elements, buttons, chips. */
+    val Elevated = Color(0xFF1B1C20)
 
-/** Slightly lighter surface for interactive elements (buttons, chips). */
-val DarkSurfaceVariant = Color(0xFF1E1E1E)
+    /** Highest overlay layer — dialogs, menus, floating elements. */
+    val Overlay = Color(0xFF22242A)
 
-/** Surface for mini player and bottom navigation bars. */
-val DarkSurfaceContainer = Color(0xFF0A0A0A)
+    /** Subtle surface for thin dividers and borders. */
+    val Subtle = Color(0xFF2A2C33)
 
-/** Glass surface for glassmorphism effects. */
-val GlassSurface = Color(0xFF1A1A1A)
+    // ── Text ────────────────────────────────────────────────────────────
 
-/** Card surface with subtle elevation. */
-val CardSurface = Color(0xFF141414)
+    /** Primary text — high contrast, readable on all surfaces. */
+    val TextPrimary = Color(0xFFF0F0F5)
 
-// ── Text & Icons ───────────────────────────────────────────────────────
+    /** Secondary text — subtitles, descriptions. */
+    val TextSecondary = Color(0xFF9496A0)
 
-/** Primary text on dark backgrounds — high contrast, readable. */
-val OnBackground = Color(0xFFE0E0E0)
+    /** Tertiary text — timestamps, metadata, hints. */
+    val TextTertiary = Color(0xFF5C5E6A)
 
-/** Secondary text (subtitles, timestamps) — reduced contrast. */
-val OnBackgroundVariant = Color(0xFF9E9E9E)
+    /** Text on accent-colored surfaces. */
+    val TextOnAccent = Color(0xFF0B0B0E)
 
-/** Text/icons on accent-colored surfaces (e.g., play button text). */
-val OnAccent = Color(0xFF000000)
+    // ── Accent (Modern Emerald) ─────────────────────────────────────────
 
-// ── Accent (Primary) ───────────────────────────────────────────────────
+    /** Primary accent — modern emerald green. */
+    val Accent = Color(0xFF1ED760)
 
-/** Vibrant green accent — used for play buttons, progress bars, highlights. */
-val AccentGreen = Color(0xFF22C55E)
+    /** Accent for pressed/active states. */
+    val AccentPressed = Color(0xFF1AAE50)
 
-/** Slightly darker green for pressed states and hover effects. */
-val AccentGreenDark = Color(0xFF16A34A)
+    /** Subtle accent for containers and highlights. */
+    val AccentSubtle = Color(0xFF1ED760).copy(alpha = 0.12f)
 
-/** Lighter green for subtle highlights and ripple effects. */
-val AccentGreenLight = Color(0xFF4ADE80)
+    /** Accent glow — used for artwork glow effects. */
+    val AccentGlow = Color(0xFF1ED760).copy(alpha = 0.30f)
 
-// ── Secondary & Tertiary ───────────────────────────────────────────────
+    // ── Secondary & Tertiary ────────────────────────────────────────────
 
-/** Muted purple for secondary actions (shuffle, repeat icons). */
-val SecondaryPurple = Color(0xFFBB86FC)
+    /** Secondary accent — violet for shuffle, repeat, special actions. */
+    val Secondary = Color(0xFFA78BFA)
 
-/** Teal for tertiary highlights and subtle indicators. */
-val TertiaryTeal = Color(0xFF03DAC6)
+    /** Tertiary accent — cyan for subtle indicators. */
+    val Tertiary = Color(0xFF22D3EE)
 
-// ── Error & Warning ────────────────────────────────────────────────────
+    // ── Semantic ────────────────────────────────────────────────────────
 
-/** Muted red for error states and destructive actions. */
-val ErrorRed = Color(0xFFCF6679)
+    /** Error / destructive actions. */
+    val Error = Color(0xFFEF4444)
 
-/** Dark red background for error containers. */
-val ErrorRedContainer = Color(0xFF3D1C24)
+    /** Error container. */
+    val ErrorContainer = Color(0xFFEF4444).copy(alpha = 0.12f)
 
-// ── Dividers & Borders ─────────────────────────────────────────────────
+    /** Success states. */
+    val Success = Color(0xFF1ED760)
 
-/** Subtle divider color for separating list items. */
-val Divider = Color(0xFF2C2C2C)
+    /** Warning states. */
+    val Warning = Color(0xFFFBBF24)
 
-/** Border color for focused input fields and active states. */
-val BorderActive = Color(0xFF1DB954)
+    // ── Dividers & Borders ─────────────────────────────────────────────
 
-// ── Progress Bar Specific ──────────────────────────────────────────────
+    /** Subtle divider between list items. */
+    val Divider = Color(0xFF1E2028)
 
-/** Track background (unfilled portion of progress bar). */
-val ProgressTrack = Color(0xFF333333)
+    /** Active border for focused inputs. */
+    val BorderActive = Color(0xFF1ED760)
 
-/** Filled portion of the progress bar — matches accent. */
-val ProgressIndicator = AccentGreen
+    // ── Progress ────────────────────────────────────────────────────────
 
-/** Thumb/handle color for interactive sliders. */
-val ProgressThumb = AccentGreen
+    /** Track background (unfilled portion). */
+    val ProgressTrack = Color(0xFF2A2C33)
 
-// ── Light Theme Colors ─────────────────────────────────────────────────
+    /** Filled portion — matches accent. */
+    val ProgressFill = Color(0xFF1ED760)
 
-/** Light theme background — clean white. */
-val LightBackground = Color(0xFFFAFAFA)
+    /** Thumb/handle for sliders. */
+    val ProgressThumb = Color(0xFFFFFFFF)
 
-/** Light theme surface for cards and sheets. */
-val LightSurface = Color(0xFFFFFFFF)
+    // ── Glass ───────────────────────────────────────────────────────────
 
-/** Light theme surface variant for interactive elements. */
-val LightSurfaceVariant = Color(0xFFF0F0F0)
+    /** Glassmorphism background — semi-transparent with blur. */
+    val GlassBackground = Color(0x14FFFFFF)
 
-/** Light theme surface container for mini player and nav bars. */
-val LightSurfaceContainer = Color(0xFFF5F5F5)
+    /** Glass border — subtle white edge. */
+    val GlassBorder = Color(0x1AFFFFFF)
 
-/** Light theme primary text — dark for readability. */
-val LightOnBackground = Color(0xFF1A1A1A)
+    /** Glass surface for mini player, bottom nav. */
+    val GlassSurface = Color(0x0DFFFFFF)
 
-/** Light theme secondary text — muted gray. */
-val LightOnBackgroundVariant = Color(0xFF666666)
+    // ── Dynamic Color Placeholders ──────────────────────────────────────
+    // These are replaced at runtime with colors extracted from album artwork.
 
-/** Light theme accent green — slightly adjusted for light backgrounds. */
-val LightAccentGreen = Color(0xFF1DB954)
+    /** Dynamic accent — extracted from current album artwork. */
+    var DynamicAccent = Accent
+        private set
 
-/** Light theme error red. */
-val LightErrorRed = Color(0xFFD32F2F)
+    /** Dynamic glow — extracted from current album artwork. */
+    var DynamicGlow = AccentGlow
+        private set
 
-/** Light theme divider. */
-val LightDivider = Color(0xFFE0E0E0)
+    /** Dynamic gradient — extracted from current album artwork. */
+    var DynamicGradient = listOf(Accent, Accent.copy(alpha = 0.6f))
+        private set
+
+    /** Update dynamic colors from album artwork palette. */
+    fun updateDynamicColors(
+        accent: Color = Accent,
+        glow: Color = AccentGlow,
+        gradient: List<Color> = listOf(Accent, Accent.copy(alpha = 0.6f)),
+    ) {
+        DynamicAccent = accent
+        DynamicGlow = glow
+        DynamicGradient = gradient
+    }
+
+    /** Reset dynamic colors to defaults. */
+    fun resetDynamicColors() {
+        DynamicAccent = Accent
+        DynamicGlow = AccentGlow
+        DynamicGradient = listOf(Accent, Accent.copy(alpha = 0.6f))
+    }
+}
+
+// ── Legacy Aliases (for backward compatibility) ──────────────────────────
+
+val Black get() = MFColors.Background
+val DarkSurface get() = MFColors.Card
+val DarkSurfaceVariant get() = MFColors.Elevated
+val DarkSurfaceContainer get() = MFColors.Overlay
+val GlassSurface get() = MFColors.GlassSurface
+val CardSurface get() = MFColors.Card
+val OnBackground get() = MFColors.TextPrimary
+val OnBackgroundVariant get() = MFColors.TextSecondary
+val OnAccent get() = MFColors.TextOnAccent
+val AccentGreen get() = MFColors.Accent
+val AccentGreenDark get() = MFColors.AccentPressed
+val AccentGreenLight get() = MFColors.Accent
+val SecondaryPurple get() = MFColors.Secondary
+val TertiaryTeal get() = MFColors.Tertiary
+val ErrorRed get() = MFColors.Error
+val ErrorRedContainer get() = MFColors.ErrorContainer
+val Divider get() = MFColors.Divider
+val BorderActive get() = MFColors.BorderActive
+val ProgressTrack get() = MFColors.ProgressTrack
+val ProgressIndicator get() = MFColors.ProgressFill
+val ProgressThumb get() = MFColors.ProgressThumb
+
+// ── Brush Utilities ──────────────────────────────────────────────────────
+
+object MFBrushes {
+    /** Background gradient — top-to-bottom depth. */
+    val BackgroundGradient = Brush.verticalGradient(
+        colors = listOf(
+            MFColors.Background,
+            MFColors.Background.copy(alpha = 0.95f),
+        )
+    )
+
+    /** Card gradient — subtle top-to-bottom for depth. */
+    val CardGradient = Brush.verticalGradient(
+        colors = listOf(
+            MFColors.Card,
+            MFColors.Card.copy(alpha = 0.98f),
+        )
+    )
+
+    /** Accent gradient — for play buttons and highlights. */
+    val AccentGradient = Brush.horizontalGradient(
+        colors = listOf(
+            MFColors.Accent,
+            MFColors.Accent.copy(alpha = 0.8f),
+        )
+    )
+
+    /** Glow gradient — radial from center for artwork effects. */
+    fun glowGradient(color: Color) = Brush.radialGradient(
+        colors = listOf(
+            color.copy(alpha = 0.4f),
+            color.copy(alpha = 0.0f),
+        )
+    )
+
+    /** Dynamic gradient — based on album artwork colors. */
+    val DynamicGradient = Brush.verticalGradient(
+        colors = MFColors.DynamicGradient + listOf(MFColors.Background)
+    )
+}

@@ -131,9 +131,11 @@ class LocalBackupManager @Inject constructor(
     /**
      * Restores the Room database from public backup.
      * Validates backup before copying to avoid restoring corrupt/empty files.
+     * After restore, the database MUST be closed and the app restarted.
+     * @param database The open Room database instance to close before restore.
      * @return true if restore succeeded
      */
-    fun restore(): Boolean {
+    fun restore(database: RoomDatabase? = null): Boolean {
         return try {
             if (!backupFile.exists()) {
                 Log.i(TAG, "No backup found, skipping restore")
@@ -182,6 +184,16 @@ class LocalBackupManager @Inject constructor(
             }
 
             dbFile.parentFile?.mkdirs()
+
+            // Close Room connection before replacing the database file
+            if (database != null) {
+                try {
+                    database.close()
+                    Log.i(TAG, "Closed Room database before restore")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to close database: ${e.message}")
+                }
+            }
 
             // Delete existing DB files to ensure clean restore
             if (dbFile.exists()) dbFile.delete()

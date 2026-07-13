@@ -55,6 +55,7 @@ fun AlbumScreen(
     error: String?,
     onBack: () -> Unit,
     onTrackSelected: (SearchResult) -> Unit,
+    onRetry: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -92,11 +93,21 @@ fun AlbumScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = error,
-                        color = OnBackgroundVariant,
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = error,
+                            color = OnBackgroundVariant,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Tap to retry",
+                            color = AccentGreen,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.clickable(onClick = onRetry),
+                        )
+                    }
                 }
             }
             albumPage != null -> {
@@ -109,15 +120,32 @@ fun AlbumScreen(
                     }
 
                     // Track list
-                    itemsIndexed(
-                        items = albumPage.tracks,
-                        key = { _, track -> track.videoId },
-                    ) { index, track ->
-                        AlbumTrackItem(
-                            track = track,
-                            index = index + 1,
-                            onClick = { onTrackSelected(track) },
-                        )
+                    if (albumPage.tracks.isEmpty()) {
+                        item {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 40.dp, horizontal = 20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Text(
+                                    text = "No tracks available",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = OnBackgroundVariant,
+                                )
+                            }
+                        }
+                    } else {
+                        itemsIndexed(
+                            items = albumPage.tracks,
+                            key = { _, track -> track.videoId },
+                        ) { index, track ->
+                            AlbumTrackItem(
+                                track = track,
+                                index = index + 1,
+                                onClick = { onTrackSelected(track) },
+                            )
+                        }
                     }
 
                     item {
@@ -134,7 +162,7 @@ private fun AlbumHeader(album: AlbumPage) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 20.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // Album thumbnail
@@ -204,7 +232,7 @@ private fun AlbumTrackItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(horizontal = 20.dp, vertical = 4.dp)
             .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
             .padding(8.dp),

@@ -10,6 +10,7 @@ import com.musicflow.app.data.local.dao.PlaylistDao
 import com.musicflow.app.data.local.dao.QueueDao
 import com.musicflow.app.data.local.dao.SearchHistoryDao
 import com.musicflow.app.data.local.dao.TrackDao
+import com.musicflow.app.data.local.dao.DownloadQueueDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -70,5 +71,10 @@ object DatabaseModule {
     @Provides
     fun provideOfflineTrackDao(database: AppDatabase): OfflineTrackDao {
         return database.offlineTrackDao()
+    }
+
+    @Provides
+    fun provideDownloadQueueDao(database: AppDatabase): DownloadQueueDao {
+        return database.downloadQueueDao()
     }
 }

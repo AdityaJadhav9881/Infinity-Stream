@@ -65,6 +65,7 @@ fun ArtistScreen(
     onBack: () -> Unit,
     onTrackSelected: (SearchResult) -> Unit,
     onAlbumSelected: (String) -> Unit,
+    onRetry: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -102,11 +103,21 @@ fun ArtistScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = error,
-                        color = OnBackgroundVariant,
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = error,
+                            color = OnBackgroundVariant,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Tap to retry",
+                            color = AccentGreen,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.clickable(onClick = onRetry),
+                        )
+                    }
                 }
             }
             artistPage != null -> {
@@ -151,6 +162,24 @@ fun ArtistScreen(
                         }
                     }
 
+                    // Empty state when no songs or albums
+                    if (artistPage.songs.isEmpty() && artistPage.albums.isEmpty()) {
+                        item {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 40.dp, horizontal = 20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Text(
+                                    text = "No content available",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = OnBackgroundVariant,
+                                )
+                            }
+                        }
+                    }
+
                     item {
                         Spacer(modifier = Modifier.height(16.dp))
                     }
@@ -165,7 +194,7 @@ private fun ArtistHeader(artist: ArtistPage) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 20.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // Artist thumbnail (circular)
@@ -225,7 +254,7 @@ private fun SectionHeader(title: String) {
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
         color = OnBackground,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
     )
 }
 
@@ -238,7 +267,7 @@ private fun ArtistTrackItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(horizontal = 20.dp, vertical = 4.dp)
             .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
             .padding(8.dp),
@@ -307,7 +336,7 @@ private fun AlbumItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(horizontal = 20.dp, vertical = 4.dp)
             .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
             .padding(8.dp),

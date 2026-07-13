@@ -12,6 +12,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
@@ -50,6 +52,7 @@ import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -83,17 +86,10 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.musicflow.app.data.local.entity.PlaylistEntity
 import com.musicflow.app.data.local.entity.TrackEntity
-import com.musicflow.app.ui.theme.AccentGreen
-import com.musicflow.app.ui.theme.AccentGreenLight
-import com.musicflow.app.ui.theme.CardSurface
-import com.musicflow.app.ui.theme.DarkSurface
-import com.musicflow.app.ui.theme.DarkSurfaceVariant
-import com.musicflow.app.ui.theme.ErrorRed
-import com.musicflow.app.ui.theme.GlassSurface
-import com.musicflow.app.ui.theme.OnBackground
-import com.musicflow.app.ui.theme.OnBackgroundVariant
-import com.musicflow.app.ui.theme.SecondaryPurple
-import com.musicflow.app.ui.theme.TertiaryTeal
+import com.musicflow.app.ui.theme.MFAnimations
+import com.musicflow.app.ui.theme.MFColors
+import com.musicflow.app.ui.theme.MFBrushes
+import com.musicflow.app.ui.theme.MFTokens
 import java.util.Calendar
 
 // ── Greeting ────────────────────────────────────────────────────────────
@@ -120,6 +116,7 @@ fun HomeScreen(
     onLibraryClick: () -> Unit,
     onFavoritesClick: () -> Unit = {},
     onDownloadsClick: () -> Unit = {},
+    onRecentlyPlayedSeeAll: () -> Unit = {},
     onMoodMixClick: (String) -> Unit = {},
     onDailyMixClick: () -> Unit = {},
     onPlaylistPlay: (Long) -> Unit = {},
@@ -127,15 +124,24 @@ fun HomeScreen(
     isNetworkAvailable: Boolean = true,
     notifications: List<HomeNotification> = emptyList(),
     onClearNotifications: () -> Unit = {},
+    trendingTracks: List<TrackEntity> = emptyList(),
+    isTrendingLoading: Boolean = false,
+    trendingError: String? = null,
+    onRetryTrending: () -> Unit = {},
+    favoriteTracks: List<TrackEntity> = emptyList(),
+    playlistTracks: Map<Long, List<TrackEntity>> = emptyMap(),
     modifier: Modifier = Modifier,
 ) {
     var showNotifications by remember { mutableStateOf(false) }
     var showProfile by remember { mutableStateOf(false) }
 
     LazyColumn(
-        modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        modifier = modifier
+            .fillMaxSize()
+            .background(MFColors.Background),
         contentPadding = PaddingValues(bottom = 100.dp),
     ) {
+        // ── Hero Greeting ───────────────────────────────────────────
         item(key = "hero") {
             HeroHeader(
                 onNotificationClick = { showNotifications = true },
@@ -145,6 +151,7 @@ fun HomeScreen(
             )
         }
 
+        // ── Quick Actions ───────────────────────────────────────────
         item(key = "quick_actions") {
             QuickActionsGrid(
                 trackCount = recentTracks.size,
@@ -156,6 +163,7 @@ fun HomeScreen(
             )
         }
 
+        // ── Continue Listening ───────────────────────────────────────
         if (recentTracks.isNotEmpty()) {
             item(key = "continue_header") {
                 SectionHeader("Continue Listening", "See All", onSeeAll = onLibraryClick)
@@ -166,20 +174,21 @@ fun HomeScreen(
                     track = track,
                     isPlaying = isPlaying,
                     onClick = { onTrackSelected(track) },
-                    progress = if (isPlaying) 0.5f else 0.4f,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                    progress = track.playbackProgress,
+                    modifier = Modifier.padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 4.dp),
                 )
             }
         }
 
+        // ── Recently Played Carousel ────────────────────────────────
         if (recentTracks.isNotEmpty()) {
             item(key = "recent_header") {
-                SectionHeader("Recently Played", "See All", onSeeAll = onLibraryClick)
+                SectionHeader("Recently Played", "See All", onSeeAll = onRecentlyPlayedSeeAll)
             }
             item(key = "recent_carousel") {
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    contentPadding = PaddingValues(horizontal = MFTokens.ScreenHorizontalPadding),
+                    horizontalArrangement = Arrangement.spacedBy(MFTokens.CarouselSpacing),
                 ) {
                     items(recentTracks.take(8)) { track ->
                         val isPlaying = track.songId == currentPlayingSongId
@@ -193,13 +202,14 @@ fun HomeScreen(
             }
         }
 
+        // ── Mixes ───────────────────────────────────────────────────
         item(key = "mixes_header") {
             SectionHeader("Mixes For You", null)
         }
         item(key = "mixes_carousel") {
             LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                contentPadding = PaddingValues(horizontal = MFTokens.ScreenHorizontalPadding),
+                horizontalArrangement = Arrangement.spacedBy(MFTokens.CarouselSpacing),
             ) {
                 items(mixCards) { mix ->
                     MixCard(
@@ -213,35 +223,90 @@ fun HomeScreen(
             }
         }
 
-        if (playlists.isNotEmpty()) {
-            item(key = "playlists_header") {
-                SectionHeader("Your Playlists", "See All", onSeeAll = onLibraryClick)
+        // ── Per-Playlist Carousels ──────────────────────────────────
+        playlists.forEach { playlist ->
+            val tracks = playlistTracks[playlist.id] ?: emptyList()
+            if (tracks.isNotEmpty()) {
+                item(key = "playlist_header_${playlist.id}") {
+                    SectionHeader(playlist.name, "See All", onSeeAll = { onPlaylistSelected(playlist.id) })
+                }
+                item(key = "playlist_carousel_${playlist.id}") {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = MFTokens.ScreenHorizontalPadding),
+                        horizontalArrangement = Arrangement.spacedBy(MFTokens.CarouselSpacing),
+                    ) {
+                        items(tracks.take(8)) { track ->
+                            val isPlaying = track.songId == currentPlayingSongId
+                            RecentCard(
+                                track = track,
+                                isPlaying = isPlaying,
+                                onClick = { onTrackSelected(track) },
+                            )
+                        }
+                    }
+                }
             }
-            item(key = "playlists_grid") {
+        }
+
+        // ── Favorites ───────────────────────────────────────────────
+        if (favoriteTracks.isNotEmpty()) {
+            item(key = "favorites_header") {
+                SectionHeader("Your Favorites", "See All", onSeeAll = onFavoritesClick)
+            }
+            item(key = "favorites_carousel") {
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    contentPadding = PaddingValues(horizontal = MFTokens.ScreenHorizontalPadding),
+                    horizontalArrangement = Arrangement.spacedBy(MFTokens.CarouselSpacing),
                 ) {
-                    items(playlists) { playlist ->
-                        PlaylistCard(
-                            playlist = playlist,
-                            onClick = { onPlaylistPlay(playlist.id) },
+                    items(favoriteTracks.take(8)) { track ->
+                        val isPlaying = track.songId == currentPlayingSongId
+                        RecentCard(
+                            track = track,
+                            isPlaying = isPlaying,
+                            onClick = { onTrackSelected(track) },
                         )
                     }
                 }
             }
         }
 
-        if (recentTracks.isNotEmpty()) {
+        // ── Trending ────────────────────────────────────────────────
+        if (trendingTracks.isNotEmpty()) {
             item(key = "trending_header") { SectionHeader("Trending Today", null) }
-            itemsIndexed(recentTracks.take(5)) { index, track ->
+            itemsIndexed(trendingTracks.take(5)) { index, track ->
                 TrendingRow(
                     track = track,
                     rank = index + 1,
                     isPlaying = track.songId == currentPlayingSongId,
                     onClick = { onTrackSelected(track) },
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 3.dp),
+                    modifier = Modifier.padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 3.dp),
                 )
+            }
+        } else if (isTrendingLoading) {
+            item(key = "trending_loading") {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = MFColors.Accent, strokeWidth = 2.dp)
+                }
+            }
+        } else if (trendingError != null) {
+            item(key = "trending_error") {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(text = trendingError, color = MFColors.TextTertiary, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Tap to retry",
+                        color = MFColors.Accent,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.clickable(onClick = onRetryTrending),
+                    )
+                }
             }
         }
     }
@@ -258,7 +323,12 @@ fun HomeScreen(
     }
 
     if (showProfile) {
-        ProfileDialog(onDismiss = { showProfile = false })
+        ProfileDialog(
+            onDismiss = { showProfile = false },
+            onFavoritesClick = { showProfile = false; onFavoritesClick() },
+            onDownloadsClick = { showProfile = false; onDownloadsClick() },
+            onLibraryClick = { showProfile = false; onLibraryClick() },
+        )
     }
 }
 
@@ -283,18 +353,18 @@ private fun NotificationsDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DarkSurface,
-        shape = RoundedCornerShape(20.dp),
+        containerColor = MFColors.Overlay,
+        shape = MFTokens.LargeRadius,
         title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Notifications", color = OnBackground, fontWeight = FontWeight.Bold)
+                Text("Notifications", color = MFColors.TextPrimary, fontWeight = FontWeight.Bold)
                 if (notifications.isNotEmpty()) {
                     TextButton(onClick = onClearAll) {
-                        Text("Clear All", color = AccentGreen, fontSize = 13.sp)
+                        Text("Clear All", color = MFColors.Accent, fontSize = 13.sp)
                     }
                 }
             }
@@ -303,7 +373,7 @@ private fun NotificationsDialog(
             if (notifications.isEmpty()) {
                 Text(
                     text = "No new notifications",
-                    color = OnBackgroundVariant,
+                    color = MFColors.TextTertiary,
                     modifier = Modifier.padding(vertical = 20.dp),
                     textAlign = TextAlign.Center,
                 )
@@ -311,14 +381,14 @@ private fun NotificationsDialog(
                 Column {
                     notifications.forEach { notification ->
                         NotificationItem(notification)
-                        HorizontalDivider(color = OnBackgroundVariant.copy(alpha = 0.1f))
+                        HorizontalDivider(color = MFColors.Divider)
                     }
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close", color = OnBackgroundVariant)
+                Text("Close", color = MFColors.TextTertiary)
             }
         },
     )
@@ -332,9 +402,9 @@ private fun NotificationItem(notification: HomeNotification) {
         NotificationType.INFO -> Icons.Filled.Notifications
     }
     val color = when (notification.type) {
-        NotificationType.SUCCESS -> AccentGreen
-        NotificationType.ERROR -> ErrorRed
-        NotificationType.INFO -> SecondaryPurple
+        NotificationType.SUCCESS -> MFColors.Accent
+        NotificationType.ERROR -> MFColors.Error
+        NotificationType.INFO -> MFColors.Secondary
     }
 
     Row(
@@ -354,8 +424,8 @@ private fun NotificationItem(notification: HomeNotification) {
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = notification.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = OnBackground)
-            Text(text = notification.message, fontSize = 12.sp, color = OnBackgroundVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(text = notification.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MFColors.TextPrimary)
+            Text(text = notification.message, fontSize = 12.sp, color = MFColors.TextSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -363,12 +433,17 @@ private fun NotificationItem(notification: HomeNotification) {
 // ── Profile Dialog ───────────────────────────────────────────────────────
 
 @Composable
-private fun ProfileDialog(onDismiss: () -> Unit) {
+private fun ProfileDialog(
+    onDismiss: () -> Unit,
+    onFavoritesClick: () -> Unit = {},
+    onDownloadsClick: () -> Unit = {},
+    onLibraryClick: () -> Unit = {},
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DarkSurface,
-        shape = RoundedCornerShape(20.dp),
-        title = { Text("Profile", color = OnBackground, fontWeight = FontWeight.Bold) },
+        containerColor = MFColors.Overlay,
+        shape = MFTokens.LargeRadius,
+        title = { Text("Profile", color = MFColors.TextPrimary, fontWeight = FontWeight.Bold) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
@@ -378,41 +453,41 @@ private fun ProfileDialog(onDismiss: () -> Unit) {
                     modifier = Modifier
                         .size(80.dp)
                         .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(listOf(AccentGreen, AccentGreenLight))
-                        ),
+                        .background(MFBrushes.AccentGradient),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Person,
                         contentDescription = null,
-                        tint = Color.Black,
+                        tint = MFColors.TextOnAccent,
                         modifier = Modifier.size(40.dp),
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("MusicFlow User", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = OnBackground)
+                Text("MusicFlow User", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MFColors.TextPrimary)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("Free Plan", fontSize = 13.sp, color = OnBackgroundVariant)
+                Text("Free Plan", fontSize = 13.sp, color = MFColors.TextSecondary)
                 Spacer(modifier = Modifier.height(24.dp))
-                ProfileMenuItem(icon = Icons.Filled.Favorite, label = "Favorites", color = ErrorRed)
-                ProfileMenuItem(icon = Icons.Filled.CloudDownload, label = "Downloads", color = AccentGreen)
-                ProfileMenuItem(icon = Icons.Filled.MusicNote, label = "Library", color = SecondaryPurple)
+                ProfileMenuItem(icon = Icons.Filled.Favorite, label = "Favorites", color = MFColors.Error, onClick = onFavoritesClick)
+                ProfileMenuItem(icon = Icons.Filled.CloudDownload, label = "Downloads", color = MFColors.Accent, onClick = onDownloadsClick)
+                ProfileMenuItem(icon = Icons.Filled.MusicNote, label = "Library", color = MFColors.Secondary, onClick = onLibraryClick)
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close", color = OnBackgroundVariant)
+                Text("Close", color = MFColors.TextTertiary)
             }
         },
     )
 }
 
 @Composable
-private fun ProfileMenuItem(icon: ImageVector, label: String, color: Color) {
+private fun ProfileMenuItem(icon: ImageVector, label: String, color: Color, onClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -426,7 +501,7 @@ private fun ProfileMenuItem(icon: ImageVector, label: String, color: Color) {
             Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
         }
         Spacer(modifier = Modifier.width(12.dp))
-        Text(text = label, fontSize = 15.sp, color = OnBackground, fontWeight = FontWeight.Medium)
+        Text(text = label, fontSize = 15.sp, color = MFColors.TextPrimary, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -442,7 +517,7 @@ private fun HeroHeader(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 24.dp),
+            .padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 24.dp),
     ) {
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -453,21 +528,21 @@ private fun HeroHeader(
                     .fillMaxWidth()
                     .padding(bottom = 12.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFEF4444).copy(alpha = 0.12f))
+                    .background(MFColors.Error.copy(alpha = 0.12f))
                     .padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
                     imageVector = Icons.Filled.CloudOff,
                     contentDescription = null,
-                    tint = Color(0xFFEF4444),
+                    tint = MFColors.Error,
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     text = "You're offline. Downloaded music still plays.",
                     fontSize = 13.sp,
-                    color = Color(0xFFEF4444),
+                    color = MFColors.Error,
                     fontWeight = FontWeight.Medium,
                 )
             }
@@ -481,32 +556,33 @@ private fun HeroHeader(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = getGreeting(),
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = OnBackground,
-                    letterSpacing = (-0.3).sp,
+                    fontSize = MFTokens.HeroTextSize,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MFColors.TextPrimary,
+                    letterSpacing = (-1.0).sp,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Continue where you left off.",
                     fontSize = 13.sp,
-                    color = OnBackgroundVariant.copy(alpha = 0.8f),
+                    color = MFColors.TextTertiary,
                     fontWeight = FontWeight.Normal,
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Notification Bell
                 Box(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(GlassSurface)
+                        .background(MFColors.Elevated)
                         .clickable(onClick = onNotificationClick),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Notifications,
                         contentDescription = "Notifications",
-                        tint = OnBackgroundVariant,
+                        tint = MFColors.TextSecondary,
                         modifier = Modifier.size(20.dp),
                     )
                     if (notificationCount > 0) {
@@ -514,35 +590,32 @@ private fun HeroHeader(
                             modifier = Modifier
                                 .size(16.dp)
                                 .clip(CircleShape)
-                                .background(ErrorRed)
+                                .background(MFColors.Error)
                                 .align(Alignment.TopEnd),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
                                 text = "$notificationCount",
                                 fontSize = 9.sp,
-                                color = Color.White,
+                                color = MFColors.TextOnAccent,
                                 fontWeight = FontWeight.Bold,
                             )
                         }
                     }
                 }
+                // Profile Avatar
                 Box(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(AccentGreen, AccentGreenLight)
-                            )
-                        )
+                        .background(MFBrushes.AccentGradient)
                         .clickable(onClick = onProfileClick),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Person,
                         contentDescription = "Profile",
-                        tint = Color.Black,
+                        tint = MFColors.TextOnAccent,
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -563,7 +636,7 @@ private fun QuickActionsGrid(
     onDownloadsClick: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+        modifier = Modifier.padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(
@@ -574,7 +647,7 @@ private fun QuickActionsGrid(
                 title = "Search",
                 subtitle = "Find songs instantly",
                 icon = Icons.Filled.Search,
-                accentColor = AccentGreen,
+                accentColor = MFColors.Accent,
                 onClick = onSearchClick,
                 modifier = Modifier.weight(1f),
             )
@@ -582,7 +655,7 @@ private fun QuickActionsGrid(
                 title = "Favorites",
                 subtitle = "Your liked music",
                 icon = Icons.Filled.Favorite,
-                accentColor = ErrorRed,
+                accentColor = MFColors.Error,
                 onClick = onFavoritesClick,
                 modifier = Modifier.weight(1f),
             )
@@ -595,7 +668,7 @@ private fun QuickActionsGrid(
                 title = "Library",
                 subtitle = "$trackCount songs \u00B7 $playlistCount playlists",
                 icon = Icons.Filled.MusicNote,
-                accentColor = AccentGreen,
+                accentColor = MFColors.Accent,
                 onClick = onLibraryClick,
                 modifier = Modifier.weight(1f),
             )
@@ -603,7 +676,7 @@ private fun QuickActionsGrid(
                 title = "Downloads",
                 subtitle = "Offline music",
                 icon = Icons.Filled.CloudDownload,
-                accentColor = Color(0xFF3B82F6),
+                accentColor = MFColors.Tertiary,
                 onClick = onDownloadsClick,
                 modifier = Modifier.weight(1f),
             )
@@ -633,21 +706,21 @@ private fun QuickActionCard(
 
     Card(
         modifier = modifier
-            .height(84.dp)
+            .height(MFTokens.QuickActionHeight)
             .scale(scale)
             .shadow(
-                elevation = if (isPressed) 1.dp else 3.dp,
-                shape = RoundedCornerShape(18.dp),
-                ambientColor = Color.Black.copy(alpha = 0.1f),
-                spotColor = Color.Black.copy(alpha = 0.08f),
+                elevation = if (isPressed) 1.dp else MFTokens.ElevationLow,
+                shape = MFTokens.MediumRadius,
+                ambientColor = Color.Black.copy(alpha = 0.15f),
+                spotColor = Color.Black.copy(alpha = 0.1f),
             )
-            .clip(RoundedCornerShape(18.dp))
+            .clip(MFTokens.MediumRadius)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
             ),
-        colors = CardDefaults.cardColors(containerColor = CardSurface),
+        colors = CardDefaults.cardColors(containerColor = MFColors.Card),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
@@ -671,15 +744,15 @@ private fun QuickActionCard(
             Column {
                 Text(
                     text = title,
-                    fontSize = 13.sp,
+                    fontSize = MFTokens.CardTitleSize,
                     fontWeight = FontWeight.SemiBold,
-                    color = OnBackground,
+                    color = MFColors.TextPrimary,
                     letterSpacing = (-0.2).sp,
                 )
                 Text(
                     text = subtitle,
-                    fontSize = 11.sp,
-                    color = OnBackgroundVariant.copy(alpha = 0.7f),
+                    fontSize = MFTokens.CardSubtitleSize,
+                    color = MFColors.TextTertiary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -695,25 +768,36 @@ private fun SectionHeader(title: String, actionText: String?, onSeeAll: () -> Un
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 20.dp),
+            .padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = MFTokens.SectionSpacing / 2),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = title,
-            fontSize = 19.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = OnBackground,
-            letterSpacing = (-0.3).sp,
+            fontSize = MFTokens.SectionHeaderTextSize,
+            fontWeight = FontWeight.Bold,
+            color = MFColors.TextPrimary,
+            letterSpacing = (-0.4).sp,
         )
         if (actionText != null) {
-            Text(
-                text = actionText,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = AccentGreen,
+            Row(
                 modifier = Modifier.clickable(onClick = onSeeAll),
-            )
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = actionText,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MFColors.Accent,
+                )
+                Spacer(modifier = Modifier.width(2.dp))
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MFColors.Accent,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
         }
     }
 }
@@ -736,46 +820,35 @@ private fun ContinueListeningCard(
 
     val infiniteTransition = rememberInfiniteTransition(label = "eq")
     val eqBar1 by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "eq1",
     )
     val eqBar2 by infiniteTransition.animateFloat(
-        initialValue = 0.6f,
-        targetValue = 0.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(350, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
+        initialValue = 0.6f, targetValue = 0.2f,
+        animationSpec = infiniteRepeatable(tween(350, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "eq2",
     )
     val eqBar3 by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 0.9f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
+        initialValue = 0.4f, targetValue = 0.9f,
+        animationSpec = infiniteRepeatable(tween(500, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "eq3",
     )
 
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(MFTokens.MediumRadius)
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = if (isPlaying) AccentGreen.copy(alpha = 0.08f) else CardSurface
+            containerColor = if (isPlaying) MFColors.Accent.copy(alpha = 0.08f) else MFColors.Card
         ),
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(MFTokens.SmallCardPadding),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // Artwork
             Box(
                 modifier = Modifier
                     .size(52.dp)
@@ -793,11 +866,11 @@ private fun ContinueListeningCard(
                 } else {
                     Box(
                         modifier = Modifier.fillMaxSize().background(
-                            Brush.verticalGradient(listOf(AccentGreen.copy(alpha = 0.3f), AccentGreen.copy(alpha = 0.1f)))
+                            Brush.verticalGradient(listOf(MFColors.Accent.copy(alpha = 0.3f), MFColors.Accent.copy(alpha = 0.1f)))
                         ),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = AccentGreen, modifier = Modifier.size(22.dp))
+                        Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = MFColors.Accent, modifier = Modifier.size(22.dp))
                     }
                 }
             }
@@ -807,7 +880,7 @@ private fun ContinueListeningCard(
                     text = track.title,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = OnBackground,
+                    color = MFColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -815,7 +888,7 @@ private fun ContinueListeningCard(
                 Text(
                     text = track.artist,
                     fontSize = 12.sp,
-                    color = OnBackgroundVariant.copy(alpha = 0.7f),
+                    color = MFColors.TextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -824,10 +897,10 @@ private fun ContinueListeningCard(
                     progress = { animatedProgress },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(4.dp)
+                        .height(3.dp)
                         .clip(RoundedCornerShape(2.dp)),
-                    color = AccentGreen,
-                    trackColor = DarkSurfaceVariant,
+                    color = MFColors.Accent,
+                    trackColor = MFColors.ProgressTrack,
                     strokeCap = StrokeCap.Round,
                 )
             }
@@ -836,49 +909,28 @@ private fun ContinueListeningCard(
                 Row(
                     modifier = Modifier
                         .size(28.dp)
-                        .clip(CircleShape)
-                        .background(AccentGreen.copy(alpha = 0.12f))
-                        .padding(6.dp),
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MFColors.Accent.copy(alpha = 0.12f))
+                        .padding(5.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalAlignment = Alignment.Bottom,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .height((eqBar1 * 16).dp.coerceAtMost(16.dp))
-                            .clip(RoundedCornerShape(1.dp))
-                            .background(AccentGreen)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .height((eqBar2 * 16).dp.coerceAtMost(16.dp))
-                            .clip(RoundedCornerShape(1.dp))
-                            .background(AccentGreen)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .height((eqBar3 * 16).dp.coerceAtMost(16.dp))
-                            .clip(RoundedCornerShape(1.dp))
-                            .background(AccentGreen)
-                    )
+                    Box(Modifier.weight(1f).fillMaxWidth().height((eqBar1 * 14).dp.coerceAtMost(14.dp)).clip(RoundedCornerShape(1.dp)).background(MFColors.Accent))
+                    Box(Modifier.weight(1f).fillMaxWidth().height((eqBar2 * 14).dp.coerceAtMost(14.dp)).clip(RoundedCornerShape(1.dp)).background(MFColors.Accent))
+                    Box(Modifier.weight(1f).fillMaxWidth().height((eqBar3 * 14).dp.coerceAtMost(14.dp)).clip(RoundedCornerShape(1.dp)).background(MFColors.Accent))
                 }
             } else {
                 Box(
                     modifier = Modifier
                         .size(28.dp)
                         .clip(CircleShape)
-                        .background(OnBackgroundVariant.copy(alpha = 0.1f)),
+                        .background(MFColors.Elevated),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Filled.PlayArrow,
                         contentDescription = "Play",
-                        tint = OnBackgroundVariant,
+                        tint = MFColors.TextSecondary,
                         modifier = Modifier.size(16.dp),
                     )
                 }
@@ -895,19 +947,16 @@ private fun RecentCard(track: TrackEntity, isPlaying: Boolean, onClick: () -> Un
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessHigh,
-        ),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh),
         label = "recentScale",
     )
 
     Column(
         modifier = Modifier
-            .width(140.dp)
+            .width(MFTokens.RecentCardWidth)
             .scale(scale)
-            .clip(RoundedCornerShape(14.dp))
-            .background(if (isPlaying) AccentGreen.copy(alpha = 0.08f) else CardSurface)
+            .clip(MFTokens.MediumRadius)
+            .background(if (isPlaying) MFColors.Accent.copy(alpha = 0.08f) else MFColors.Card)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -933,11 +982,11 @@ private fun RecentCard(track: TrackEntity, isPlaying: Boolean, onClick: () -> Un
             } else {
                 Box(
                     modifier = Modifier.fillMaxSize().background(
-                        Brush.verticalGradient(listOf(AccentGreen.copy(alpha = 0.3f), AccentGreen.copy(alpha = 0.08f)))
+                        Brush.verticalGradient(listOf(MFColors.Accent.copy(alpha = 0.3f), MFColors.Accent.copy(alpha = 0.08f)))
                     ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = AccentGreen, modifier = Modifier.size(28.dp))
+                    Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = MFColors.Accent, modifier = Modifier.size(28.dp))
                 }
             }
             if (isPlaying) {
@@ -951,7 +1000,7 @@ private fun RecentCard(track: TrackEntity, isPlaying: Boolean, onClick: () -> Un
                     Icon(
                         imageVector = Icons.Filled.MusicNote,
                         contentDescription = "Playing",
-                        tint = AccentGreen,
+                        tint = MFColors.Accent,
                         modifier = Modifier.size(18.dp),
                     )
                 }
@@ -962,7 +1011,7 @@ private fun RecentCard(track: TrackEntity, isPlaying: Boolean, onClick: () -> Un
             text = track.title,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
-            color = OnBackground,
+            color = MFColors.TextPrimary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth(),
@@ -970,7 +1019,7 @@ private fun RecentCard(track: TrackEntity, isPlaying: Boolean, onClick: () -> Un
         Text(
             text = track.artist,
             fontSize = 10.sp,
-            color = OnBackgroundVariant.copy(alpha = 0.7f),
+            color = MFColors.TextTertiary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth(),
@@ -1002,10 +1051,7 @@ private fun MixCard(mix: MixData, onClick: () -> Unit) {
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessHigh,
-        ),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh),
         label = "mixScale",
     )
 
@@ -1015,10 +1061,10 @@ private fun MixCard(mix: MixData, onClick: () -> Unit) {
             .height(180.dp)
             .scale(scale)
             .shadow(
-                elevation = 6.dp,
+                elevation = MFTokens.ElevationMedium,
                 shape = RoundedCornerShape(20.dp),
-                ambientColor = Color.Black.copy(alpha = 0.15f),
-                spotColor = Color.Black.copy(alpha = 0.1f),
+                ambientColor = Color.Black.copy(alpha = 0.2f),
+                spotColor = Color.Black.copy(alpha = 0.15f),
             )
             .clip(RoundedCornerShape(20.dp))
             .background(Brush.verticalGradient(colors = mix.gradient))
@@ -1062,69 +1108,6 @@ private fun MixCard(mix: MixData, onClick: () -> Unit) {
     }
 }
 
-// ── Playlist Card ───────────────────────────────────────────────────────
-
-@Composable
-private fun PlaylistCard(playlist: PlaylistEntity, onClick: () -> Unit) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessHigh,
-        ),
-        label = "playlistScale",
-    )
-
-    Box(
-        modifier = Modifier
-            .width(150.dp)
-            .height(180.dp)
-            .scale(scale)
-            .clip(RoundedCornerShape(20.dp))
-            .background(CardSurface)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            )
-            .padding(16.dp),
-    ) {
-        Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(AccentGreen.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.MusicNote,
-                    contentDescription = null,
-                    tint = AccentGreen,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-            Column {
-                Text(
-                    text = playlist.name,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = OnBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = "Playlist",
-                    fontSize = 11.sp,
-                    color = OnBackgroundVariant.copy(alpha = 0.7f),
-                )
-            }
-        }
-    }
-}
-
 // ── Trending Row ────────────────────────────────────────────────────────
 
 @Composable
@@ -1139,10 +1122,7 @@ private fun TrendingRow(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessHigh,
-        ),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh),
         label = "trendScale",
     )
 
@@ -1151,7 +1131,7 @@ private fun TrendingRow(
             .fillMaxWidth()
             .scale(scale)
             .clip(RoundedCornerShape(12.dp))
-            .background(if (isPlaying) AccentGreen.copy(alpha = 0.06f) else Color.Transparent)
+            .background(if (isPlaying) MFColors.Accent.copy(alpha = 0.06f) else Color.Transparent)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -1164,7 +1144,7 @@ private fun TrendingRow(
             text = "$rank",
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
-            color = if (rank <= 3) AccentGreen else OnBackgroundVariant.copy(alpha = 0.5f),
+            color = if (rank <= 3) MFColors.Accent else MFColors.TextTertiary,
             modifier = Modifier.width(32.dp),
             textAlign = TextAlign.Center,
         )
@@ -1172,7 +1152,7 @@ private fun TrendingRow(
             modifier = Modifier
                 .size(48.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(DarkSurfaceVariant),
+                .background(MFColors.Elevated),
             contentAlignment = Alignment.Center,
         ) {
             if (track.artworkUrl.isNotBlank()) {
@@ -1184,7 +1164,7 @@ private fun TrendingRow(
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
-                Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = OnBackgroundVariant, modifier = Modifier.size(20.dp))
+                Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = MFColors.TextTertiary, modifier = Modifier.size(20.dp))
             }
         }
         Spacer(modifier = Modifier.width(12.dp))
@@ -1193,14 +1173,14 @@ private fun TrendingRow(
                 text = track.title,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                color = OnBackground,
+                color = MFColors.TextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = track.artist,
                 fontSize = 12.sp,
-                color = OnBackgroundVariant.copy(alpha = 0.7f),
+                color = MFColors.TextTertiary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -1209,14 +1189,14 @@ private fun TrendingRow(
             Icon(
                 imageVector = Icons.Filled.MusicNote,
                 contentDescription = "Playing",
-                tint = AccentGreen,
+                tint = MFColors.Accent,
                 modifier = Modifier.size(16.dp),
             )
         } else {
             Icon(
                 imageVector = Icons.Filled.TrendingUp,
                 contentDescription = null,
-                tint = AccentGreen.copy(alpha = 0.4f),
+                tint = MFColors.Accent.copy(alpha = 0.4f),
                 modifier = Modifier.size(16.dp),
             )
         }

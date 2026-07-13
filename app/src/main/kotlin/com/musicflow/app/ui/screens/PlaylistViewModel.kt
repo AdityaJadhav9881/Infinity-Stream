@@ -2,9 +2,11 @@ package com.musicflow.app.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.musicflow.app.data.SharedMusicState
 import com.musicflow.app.data.local.dao.PlaylistDao
 import com.musicflow.app.data.local.entity.PlaylistEntity
 import com.musicflow.app.data.local.entity.PlaylistTrackMap
+import com.musicflow.app.data.local.entity.TrackEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +21,7 @@ import javax.inject.Inject
 @HiltViewModel
 class PlaylistViewModel @Inject constructor(
     private val playlistDao: PlaylistDao,
+    private val sharedMusicState: SharedMusicState,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlaylistUiState())
@@ -29,7 +32,7 @@ class PlaylistViewModel @Inject constructor(
     }
 
     private fun observePlaylists() {
-        playlistDao.observeAllPlaylists().onEach { playlists ->
+        sharedMusicState.playlists.onEach { playlists ->
             _uiState.update { state ->
                 state.copy(
                     playlists = playlists,
@@ -40,42 +43,23 @@ class PlaylistViewModel @Inject constructor(
     }
 
     fun createPlaylist(name: String) {
-        if (name.isBlank()) return
-        viewModelScope.launch {
-            playlistDao.createPlaylist(PlaylistEntity(name = name.trim()))
-        }
+        sharedMusicState.createPlaylist(name)
     }
 
     fun renamePlaylist(playlistId: Long, newName: String) {
-        if (newName.isBlank()) return
-        viewModelScope.launch {
-            playlistDao.renamePlaylist(playlistId, newName.trim())
-        }
+        sharedMusicState.renamePlaylist(playlistId, newName)
     }
 
     fun deletePlaylist(playlistId: Long) {
-        viewModelScope.launch {
-            playlistDao.deletePlaylist(playlistId)
-        }
+        sharedMusicState.deletePlaylist(playlistId)
     }
 
     fun addTrackToPlaylist(playlistId: Long, songId: String) {
-        viewModelScope.launch {
-            val count = playlistDao.getPlaylistTrackCount(playlistId)
-            playlistDao.addTrackToPlaylist(
-                PlaylistTrackMap(
-                    playlistId = playlistId,
-                    songId = songId,
-                    position = count,
-                )
-            )
-        }
+        sharedMusicState.addTrackToPlaylist(playlistId, songId)
     }
 
     fun removeTrackFromPlaylist(playlistId: Long, songId: String) {
-        viewModelScope.launch {
-            playlistDao.removeTrackFromPlaylist(playlistId, songId)
-        }
+        sharedMusicState.removeTrackFromPlaylist(playlistId, songId)
     }
 
     fun isTrackInPlaylist(playlistId: Long, songId: String, callback: (Boolean) -> Unit) {
@@ -85,15 +69,60 @@ class PlaylistViewModel @Inject constructor(
         }
     }
 
-    fun getPlaylistTracks(playlistId: Long, callback: (List<com.musicflow.app.data.local.entity.TrackEntity>) -> Unit) {
+    fun getPlaylistTracks(playlistId: Long, callback: (List<TrackEntity>) -> Unit) {
         viewModelScope.launch {
             val tracks = playlistDao.getPlaylistTracks(playlistId)
             callback(tracks)
         }
     }
 
-    fun getPlaylistTracksFlow(playlistId: Long): Flow<List<com.musicflow.app.data.local.entity.TrackEntity>> {
+    fun getPlaylistTracksFlow(playlistId: Long): Flow<List<TrackEntity>> {
         return playlistDao.observePlaylistTracks(playlistId)
+    }
+
+    /**
+     * Duplicates a playlist with all its tracks.
+     */
+    fun duplicatePlaylist(playlistId: Long) {
+        viewModelScope.launch {
+            val original = playlistDao.getPlaylistById(playlistId) ?: return@launch
+            val newId = playlistDao.createPlaylist(
+                PlaylistEntity(name = "${original.name} (Copy)")
+            )
+            val trackIds = playlistDao.getTrackIdsInPlaylist(playlistId)
+            trackIds.forEachIndexed { index, songId ->
+                playlistDao.addTrackToPlaylist(
+                    PlaylistTrackMap(
+                        playlistId = newId,
+                        songId = songId,
+                        position = index,
+                    )
+                )
+            }
+        }
+    }
+
+    /**
+     * Reorders a track within a playlist.
+     */
+    fun reorderTrack(playlistId: Long, fromPosition: Int, toPosition: Int) {
+        viewModelScope.launch {
+            val trackIds = playlistDao.getTrackIdsInPlaylist(playlistId).toMutableList()
+            if (fromPosition in trackIds.indices && toPosition in trackIds.indices) {
+                val item = trackIds.removeAt(fromPosition)
+                trackIds.add(toPosition, item)
+                // Update all positions
+                trackIds.forEachIndexed { index, songId ->
+                    playlistDao.addTrackToPlaylist(
+                        PlaylistTrackMap(
+                            playlistId = playlistId,
+                            songId = songId,
+                            position = index,
+                        )
+                    )
+                }
+            }
+        }
     }
 
     fun onDismissDialog() {
@@ -113,5 +142,5 @@ data class PlaylistUiState(
     val playlists: List<PlaylistEntity> = emptyList(),
     val isLoading: Boolean = true,
     val showCreateDialog: Boolean = false,
-    val showAddToPlaylistDialog: String? = null, // songId or null
+    val showAddToPlaylistDialog: String? = null,
 )

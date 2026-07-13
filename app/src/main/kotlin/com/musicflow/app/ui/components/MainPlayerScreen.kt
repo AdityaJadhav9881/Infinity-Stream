@@ -93,15 +93,15 @@ import coil.request.SuccessResult
 import coil.size.Size
 import com.musicflow.app.data.TrackMetadata
 import com.musicflow.app.ui.components.LyricsOverlay
+import com.musicflow.app.ui.theme.MFColors
+import com.musicflow.app.ui.theme.MFGlass
+import com.musicflow.app.ui.theme.MFTokens
 import com.musicflow.app.ui.theme.AccentGreen
-import com.musicflow.app.ui.theme.AccentGreenLight
-import com.musicflow.app.ui.theme.Black
 import com.musicflow.app.ui.theme.DarkSurface
-import com.musicflow.app.ui.theme.DarkSurfaceVariant
 import com.musicflow.app.ui.theme.OnBackground
 import com.musicflow.app.ui.theme.OnBackgroundVariant
 import com.musicflow.app.ui.theme.ProgressTrack
-import com.musicflow.app.ui.theme.SecondaryPurple
+import com.musicflow.app.ui.theme.ProgressIndicator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -182,7 +182,7 @@ fun MainPlayerScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(MFColors.Background)
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
@@ -202,7 +202,7 @@ fun MainPlayerScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -210,7 +210,7 @@ fun MainPlayerScreen(
                 Icon(
                     imageVector = Icons.Filled.KeyboardArrowDown,
                     contentDescription = "Close",
-                    tint = OnBackground.copy(alpha = 0.8f),
+                    tint = MFColors.TextPrimary.copy(alpha = 0.8f),
                     modifier = Modifier.size(30.dp),
                 )
             }
@@ -239,7 +239,7 @@ fun MainPlayerScreen(
         TabRow(
             selectedTabIndex = selectedTab,
             containerColor = Color.Transparent,
-            contentColor = OnBackground,
+            contentColor = MFColors.TextPrimary,
             indicator = { tabPositions ->
                 TabRowDefaults.SecondaryIndicator(
                     modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
@@ -258,7 +258,7 @@ fun MainPlayerScreen(
                             text = title,
                             fontSize = 13.sp,
                             fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selectedTab == index) OnBackground else OnBackgroundVariant,
+                            color = if (selectedTab == index) MFColors.TextPrimary else MFColors.TextTertiary,
                         )
                     },
                 )
@@ -348,7 +348,7 @@ fun MainPlayerScreen(
                             Icon(
                                 imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                                 contentDescription = if (isLiked) "Unlike" else "Like",
-                                tint = if (isLiked) Color(0xFFE74C3C) else OnBackgroundVariant.copy(alpha = 0.7f),
+                                tint = if (isLiked) Color(0xFFE74C3C) else MFColors.TextTertiary,
                                 modifier = Modifier.size(22.dp),
                             )
                         }
@@ -357,7 +357,7 @@ fun MainPlayerScreen(
                             Icon(
                                 imageVector = Icons.Filled.QueueMusic,
                                 contentDescription = "Add to Playlist",
-                                tint = OnBackgroundVariant.copy(alpha = 0.7f),
+                                tint = MFColors.TextTertiary,
                                 modifier = Modifier.size(22.dp),
                             )
                         }
@@ -366,7 +366,7 @@ fun MainPlayerScreen(
                             Icon(
                                 imageVector = Icons.Filled.Lyrics,
                                 contentDescription = "Lyrics",
-                                tint = if (isLyricsVisible) AccentGreen else OnBackgroundVariant.copy(alpha = 0.7f),
+                                tint = if (isLyricsVisible) MFColors.Accent else MFColors.TextTertiary,
                                 modifier = Modifier.size(22.dp),
                             )
                         }
@@ -375,7 +375,7 @@ fun MainPlayerScreen(
                             Icon(
                                 imageVector = Icons.Filled.Timer,
                                 contentDescription = "Sleep Timer",
-                                tint = if (sleepTimerText != null) AccentGreen else OnBackgroundVariant.copy(alpha = 0.7f),
+                                tint = if (sleepTimerText != null) MFColors.Accent else MFColors.TextTertiary,
                                 modifier = Modifier.size(22.dp),
                             )
                         }
@@ -578,12 +578,13 @@ private fun TrackInfoPremium(
         Text(
             text = title,
             fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = OnBackground,
+            fontWeight = FontWeight.ExtraBold,
+            color = MFColors.TextPrimary,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
             lineHeight = 28.sp,
+            letterSpacing = (-0.3).sp,
         )
 
         Spacer(modifier = Modifier.height(6.dp))
@@ -592,7 +593,7 @@ private fun TrackInfoPremium(
             text = artist,
             fontSize = 15.sp,
             fontWeight = FontWeight.Normal,
-            color = OnBackgroundVariant,
+            color = MFColors.TextSecondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
@@ -707,7 +708,7 @@ private fun PlaybackControlsPremium(
             Icon(
                 imageVector = Icons.Rounded.SkipPrevious,
                 contentDescription = "Previous",
-                tint = OnBackground.copy(alpha = 0.85f),
+                tint = MFColors.TextPrimary.copy(alpha = 0.85f),
                 modifier = Modifier.size(36.dp),
             )
         }
@@ -766,7 +767,7 @@ private fun PlaybackControlsPremium(
             Icon(
                 imageVector = Icons.Rounded.SkipNext,
                 contentDescription = "Next",
-                tint = OnBackground.copy(alpha = 0.85f),
+                tint = MFColors.TextPrimary.copy(alpha = 0.85f),
                 modifier = Modifier.size(36.dp),
             )
         }

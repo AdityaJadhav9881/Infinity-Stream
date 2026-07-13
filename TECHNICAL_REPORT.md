@@ -1,11 +1,11 @@
-# MusicFlow — Full Technical Report
+# MusicFlow — Technical Report
 
-**Version:** 1.0.0  
+**Version:** 1.2.0  
 **Package:** `com.musicflow.app`  
 **Platform:** Android (minSdk 26, targetSdk 35)  
 **Language:** Kotlin 100%  
 **UI Framework:** Jetpack Compose (Material 3)  
-**Date:** July 2025
+**Date:** July 2026
 
 ---
 
@@ -17,52 +17,60 @@
 4. [Data Layer — Room Database](#4-data-layer--room-database)
 5. [Data Layer — Network / Innertube API](#5-data-layer--network--innertube-api)
 6. [Player System (Media3 / ExoPlayer)](#6-player-system-media3--exoplayer)
-7. [Download & Offline System](#7-download--offline-system)
-8. [Backup & Restore](#8-backup--restore)
-9. [Background Workers](#9-background-workers)
-10. [Settings & Preferences](#10-settings--preferences)
-11. [UI Layer — Screens & Navigation](#11-ui-layer--screens--navigation)
-12. [UI Layer — Components](#12-ui-layer--components)
-13. [Theme System](#13-theme-system)
-14. [Audio Engine (yt-dlp)](#14-audio-engine-yt-dlp)
-15. [Permissions & Manifest](#15-permissions--manifest)
-16. [Build Configuration](#16-build-configuration)
-17. [Known Issues & Limitations](#17-known-issues--limitations)
+7. [State Management — SharedMusicState](#7-state-management--sharedmusicstate)
+8. [Download & Offline System](#8-download--offline-system)
+9. [Backup & Restore](#9-backup--restore)
+10. [Background Workers](#10-background-workers)
+11. [Settings & Preferences](#11-settings--preferences)
+12. [UI Layer — Screens & Navigation](#12-ui-layer--screens--navigation)
+13. [UI Layer — Components](#13-ui-layer--components)
+14. [Design System — Infinity Stream V2](#14-design-system--infinity-stream-v2)
+15. [Theme System](#15-theme-system)
+16. [Audio Engine (yt-dlp)](#16-audio-engine-yt-dlp)
+17. [Permissions & Manifest](#17-permissions--manifest)
+18. [Build Configuration](#18-build-configuration)
+19. [Known Issues & Limitations](#19-known-issues--limitations)
+20. [Bug Fixes Applied](#20-bug-fixes-applied)
 
 ---
 
 ## 1. Architecture Overview
 
-MusicFlow follows an **MVVM (Model-View-ViewModel)** architecture with a service layer for background playback.
+MusicFlow follows an **MVVM (Model-View-ViewModel)** architecture with a singleton state management layer and a service layer for background playback.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                     UI Layer (Compose)                   │
 │  Screens ─── ViewModels ─── StateFlows ─── UI State     │
 ├──────────────────────────────────────────────────────────┤
-│                   Service Layer                         │
+│                  State Layer (Singleton)                  │
+│  SharedMusicState (@Singleton) — Single Source of Truth  │
+│  Manages: tracks, favorites, playlists, playback state   │
+├──────────────────────────────────────────────────────────┤
+│                   Service Layer                          │
 │  MusicPlaybackService (Media3 MediaSessionService)      │
-│  OfflineDownloadManager                                 │
-│  QueuePersistenceManager                                │
+│  DownloadManager (queue-based)                           │
 ├──────────────────────────────────────────────────────────┤
-│                    Data Layer                           │
-│  Room DB ─── DAOs ─── Entities                         │
+│                    Data Layer                            │
+│  Room DB (v7) ─── 8 DAOs ─── 9 Entities                │
 │  InnertubeClient ─── SearchRepository                   │
-│  MediaExtractionRepository                              │
+│  MediaExtractionRepository (yt-dlp)                     │
 ├──────────────────────────────────────────────────────────┤
-│                  Utility Layer                          │
+│                  Utility Layer                           │
 │  Preferences (DataStore) │ Workers │ Managers           │
 ├──────────────────────────────────────────────────────────┤
-│                   Platform Layer                        │
+│                   Platform Layer                         │
 │  ExoPlayer/Media3 │ yt-dlp │ OkHttp │ Coil              │
 └──────────────────────────────────────────────────────────┘
 ```
 
 **Key patterns:**
 - **Unidirectional data flow** — UI observes `StateFlow<UiState>` from ViewModels
+- **Singleton state** — `SharedMusicState` is the single source of truth for all shared state (tracks, favorites, playlists)
 - **Hilt DI** — all dependencies injected via constructor injection
 - **Service isolation** — playback runs in a foreground `MediaSessionService`, not in the Activity
 - **No `runBlocking`** — all network/DB operations are async via coroutines
+- **Reactive database** — DAO methods return `Flow<List<>>` for real-time UI updates
 
 ---
 
@@ -74,32 +82,30 @@ app/src/main/kotlin/com/musicflow/app/
 ├── MainActivity.kt                  # Single Activity, Compose host, navigation
 │
 ├── data/
+│   ├── SharedMusicState.kt          # @Singleton single source of truth
 │   ├── local/
-│   │   ├── AppDatabase.kt           # Room DB (version 5)
-│   │   ├── entity/                  # 8 entities
-│   │   └── dao/                     # 7 DAOs
+│   │   ├── AppDatabase.kt           # Room DB (version 7)
+│   │   ├── entity/                  # 9 entities
+│   │   └── dao/                     # 8 DAOs
 │   ├── remote/
 │   │   ├── InnertubeClient.kt       # YouTube Music API spoofing (~950 lines)
 │   │   ├── SearchRepository.kt      # Search + suggestions
 │   │   ├── MediaExtractionRepository.kt  # Audio URL extraction via yt-dlp
 │   │   ├── AudioHeaderStore.kt      # In-memory HTTP header cache
-│   │   ├── LyricsProvider.kt        # Lyrics fetching
-│   │   └── TrackMetadata.kt         # Metadata sidecar model
+│   │   └── LyricsProvider.kt        # Lyrics fetching
 │   └── local/
 │       └── LocalBackupManager.kt    # DB backup/restore
 │
 ├── player/
 │   ├── MusicPlaybackService.kt      # Media3 MediaSessionService
-│   ├── OfflineDownloadManager.kt    # Track download + file management
-│   ├── QueuePersistenceManager.kt   # Queue save/restore
-│   └── AudioCacheManager.kt         # ExoPlayer disk cache
+│   └── DownloadManager.kt           # Queue-based download system
 │
 ├── worker/
 │   ├── MediaStoreReconciliationWorker.kt  # Sync filesystem ↔ DB
 │   └── DatabaseBackupWorker.kt            # Periodic backup
 │
 ├── ui/
-│   ├── screens/                     # 9 screens
+│   ├── screens/                     # 10 screens
 │   │   ├── HomeScreen.kt
 │   │   ├── SearchScreen.kt
 │   │   ├── LibraryScreen.kt
@@ -108,10 +114,12 @@ app/src/main/kotlin/com/musicflow/app/
 │   │   ├── OnboardingScreen.kt
 │   │   ├── PlaylistDetailScreen.kt
 │   │   ├── ArtistScreen.kt
-│   │   └── AlbumScreen.kt
+│   │   ├── AlbumScreen.kt
+│   │   └── (ViewModels colocated)
 │   ├── components/                  # 8 reusable components
 │   │   ├── MiniPlayer.kt
 │   │   ├── MainPlayerScreen.kt
+│   │   ├── BottomNavBar.kt
 │   │   ├── QueueSheet.kt
 │   │   ├── SleepTimerDialog.kt
 │   │   ├── AddToPlaylistDialog.kt
@@ -120,29 +128,33 @@ app/src/main/kotlin/com/musicflow/app/
 │   │   └── ShimmerLoading.kt
 │   ├── navigation/
 │   │   └── Screen.kt               # Bottom nav enum + routes
-│   └── theme/                       # Material 3 theme
-│       ├── Color.kt
-│       ├── Theme.kt
-│       └── Type.kt
+│   └── theme/                       # Material 3 theme + design system
+│       ├── Color.kt                 # MFColors (layered surfaces, backward-compat aliases)
+│       ├── Theme.kt                 # Dark-only Material 3 scheme
+│       ├── Type.kt                  # MFTypography (ExtraBold hero titles)
+│       ├── DesignTokens.kt          # MFTokens (spacing, radius, elevation, animation)
+│       ├── GlassEffect.kt           # MFGlass (glassmorphism composables)
+│       ├── AnimatedComponents.kt    # MFAnimations (pressScale, glow, mfRipple)
+│       └── DynamicColors.kt         # MFDynamicColors (Palette extraction)
 │
 ├── utils/
-│   ├── ThemePreferences.kt          # DataStore: theme mode
-│   ├── LanguagePreferences.kt       # DataStore: search languages
-│   ├── PlayerSettingsManager.kt     # DataStore: skip silence, volume norm, EQ
-│   ├── DownloadSettingsManager.kt   # DataStore: download quality, wifi-only
-│   ├── SleepTimerManager.kt         # CountDownTimer wrapper
-│   ├── EqualizerManager.kt          # Hardware AudioEffects
-│   ├── SoftwareEqualizerProcessor.kt # Software DSP (experimental)
-│   └── NetworkMonitor.kt            # Connectivity observer
+│   ├── ThemePreferences.kt
+│   ├── LanguagePreferences.kt
+│   ├── PlayerSettingsManager.kt
+│   ├── DownloadSettingsManager.kt
+│   ├── SleepTimerManager.kt
+│   ├── EqualizerManager.kt
+│   ├── SoftwareEqualizerProcessor.kt
+│   └── NetworkMonitor.kt
 │
 ├── di/
-│   ├── DatabaseModule.kt            # Room DB + DAO providers
-│   └── PlayerModule.kt              # ExoPlayer SimpleCache provider
+│   ├── DatabaseModule.kt
+│   └── PlayerModule.kt
 │
-└── build.gradle.kts                 # Dependencies & build config
+└── build.gradle.kts
 ```
 
-**Total source files:** 68 Kotlin files
+**Total source files:** ~68 Kotlin files
 
 ---
 
@@ -156,13 +168,14 @@ app/src/main/kotlin/com/musicflow/app/
 
 | Module | Scope | Provides |
 |--------|-------|----------|
-| `DatabaseModule` | `SingletonComponent` | `AppDatabase`, all 7 DAOs |
+| `DatabaseModule` | `SingletonComponent` | `AppDatabase`, all 8 DAOs |
 | `PlayerModule` | `SingletonComponent` | `SimpleCache` (2 GB LRU) |
 
 ### Injected Singletons
 
 | Class | Injected Into |
 |-------|--------------|
+| `SharedMusicState` | All ViewModels that need shared state |
 | `EqualizerManager` | `MusicPlaybackService`, `MainActivity` |
 | `PlayerSettingsManager` | `MusicPlaybackService`, `MainActivity` |
 | `DownloadSettingsManager` | `MainActivity` |
@@ -171,58 +184,58 @@ app/src/main/kotlin/com/musicflow/app/
 | `LocalBackupManager` | `MainActivity`, `MusicFlowApplication` |
 | `SimpleCache` | `MusicPlaybackService` |
 | `AppDatabase` | All repositories |
-| `InnertubeClient` | `SearchRepository`, `MediaExtractionRepository` |
 
-### ViewModels (7 total)
+### ViewModels (8 total)
 
-All ViewModels use `@HiltViewModel` and are created via `hiltViewModel()` in Compose:
-
-- `PlayerViewModel` — playback state, queue, like, download
-- `SearchViewModel` — search query, results, suggestions, history
-- `LibraryViewModel` — library items, offline tracks, playlists
-- `PlaylistViewModel` — playlist CRUD, add/remove tracks
-- `EngineInfoViewModel` — yt-dlp version, update status
-- `ArtistViewModel` — artist page loading
-- `AlbumViewModel` — album page loading
+| ViewModel | Key Dependencies |
+|-----------|-----------------|
+| `PlayerViewModel` | `SharedMusicState`, `SearchRepository` |
+| `HomeViewModel` | `SharedMusicState`, `SearchRepository`, `PlaylistDao` |
+| `LibraryViewModel` | `SharedMusicState` |
+| `SearchViewModel` | `SearchRepository` |
+| `PlaylistViewModel` | `SharedMusicState` |
+| `ArtistViewModel` | `SearchRepository` |
+| `AlbumViewModel` | `SearchRepository` |
+| `EngineInfoViewModel` | — |
 
 ---
 
 ## 4. Data Layer — Room Database
 
-**Database:** `AppDatabase` (Room, version 5, `fallbackToDestructiveMigration()`)
+**Database:** `AppDatabase` (Room, **version 7**, `fallbackToDestructiveMigration()`)
 
-### Entities (8)
+### Entities (9)
 
 | Entity | Table | Key Fields |
 |--------|-------|------------|
-| `TrackEntity` | `tracks` | `songId` (PK), title, artist, artworkUrl, isFavorite, playCount, lastPlayedAt |
+| `TrackEntity` | `tracks` | `songId` (PK), title, artist, artworkUrl, playCount, lastPlayedAt, addedAt, lastPlayedPositionMs, lastPlayedDurationMs |
 | `FavoriteEntity` | `favorites` | `songId` (PK), addedAt |
 | `SearchHistoryEntity` | `search_history` | `id` (auto PK), query, timestamp |
-| `PlaylistEntity` | `playlists` | `id` (auto PK), name, createdAt |
-| `PlaylistTrackMap` | `playlist_tracks` | `id` (auto PK), playlistId, songId, addedAt |
+| `PlaylistEntity` | `playlists` | `id` (auto PK), name, createdAt, updatedAt |
+| `PlaylistTrackMap` | `playlist_track_map` | `id` (auto PK), playlistId, songId, position |
 | `LyricsEntity` | `lyrics` | `songId` (PK), lyrics, provider |
 | `QueueEntity` | `queue` | `id` (auto PK), songId, position, addedAt |
 | `OfflineTrackEntity` | `offline_tracks` | `songId` (PK), title, artist, artworkUrl, localFilePath, fileSize, downloadedAt |
+| `DownloadQueueEntity` | `download_queue` | `songId` (PK), status, progress, speed, totalBytes, downloadedBytes, retryCount |
 
-### DAOs (7)
+### DAOs (8)
 
 | DAO | Key Queries |
 |-----|------------|
-| `TrackDao` | `getAll()`, `getById()`, `upsert()`, `deleteById()`, `incrementPlayCount()`, `clearAll()` |
-| `FavoriteDao` | `getAll()`, `isFavorite()`, `toggle()`, `deleteAll()` |
-| `SearchHistoryDao` | `getAll()`, `insert()`, `delete()`, `clearAll()` |
-| `PlaylistDao` | `getAll()`, `create()`, `delete()`, `addTrack()`, `removeTrack()`, `getTracks()` |
-| `LyricsDao` | `get()`, `insert()`, `clearAll()` |
+| `TrackDao` | `observeAllTracks()`, `observeRecentlyPlayed()`, `observeMostPlayed()`, `markAsPlayed()`, `savePlaybackPosition()`, `upsertTrack()` |
+| `FavoriteDao` | `observeAllFavorites()`, `observeIsFavorite()`, `isFavorite()`, `toggle()` |
+| `SearchHistoryDao` | `observeAll()`, `insert()`, `delete()`, `clearAll()` |
+| `PlaylistDao` | `observeAllPlaylists()`, `observePlaylistTracks()`, `addTrackToPlaylistAtomic()`, `getPlaylistTrackCount()` |
+| `LyricsDao` | `observeLyrics()`, `get()`, `insert()`, `delete()` |
 | `QueueDao` | `getAll()`, `saveQueue()`, `clearAll()` |
-| `OfflineTrackDao` | `getAll()`, `getById()`, `getByFilePath()`, `insert()`, `delete()`, `clearAll()` |
+| `OfflineTrackDao` | `getAll()`, `getById()`, `insert()`, `delete()` |
+| `DownloadQueueDao` | `observeAll()`, `observeActive()`, `getNextQueued()`, `updateProgress()`, `markFailed()`, `markCompleted()`, `retry()`, `cancel()` |
 
 ### Data Flow
 
 ```
-User Action → ViewModel → DAO (suspend) → Room DB → StateFlow → UI
+User Action → ViewModel → SharedMusicState → DAO (suspend) → Room DB → StateFlow → UI
 ```
-
-All DAO methods are `suspend` functions or return `Flow<List<>>` for reactive updates.
 
 ---
 
@@ -230,7 +243,9 @@ All DAO methods are `suspend` functions or return `Flow<List<>>` for reactive up
 
 ### InnertubeClient (~950 lines)
 
-The core network component. Spoofs the **YouTube Music Android client** by building raw JSON payloads and sending them to YouTube's internal `youtubei/v1` API.
+Spoofs the **YouTube Music Android client** by building raw JSON payloads and sending them to YouTube's internal `youtubei/v1` API.
+
+**Context spoofing:** All payloads include `gl: "US"` and `hl: "en"` for US English content.
 
 **Endpoints used:**
 
@@ -239,45 +254,25 @@ The core network component. Spoofs the **YouTube Music Android client** by build
 | `youtubei/v1/player` | Get audio stream URL for a video |
 | `youtubei/v1/next` | Get "Up Next" / radio queue |
 | `youtubei/v1/browse` | Artist page, album page |
-| `music/search` | Search songs/artists/albums |
+| `youtubei/v1/search` | Search songs/artists/albums |
+| `youtubei/v1/music/get_search_suggestions` | Autocomplete suggestions |
 
 **Data classes:**
 
 ```kotlin
 data class SearchResult(videoId: String, title: String, artist: String, thumbnailUrl: String)
-data class ArtistPage(name: String, thumbnailUrl: String, albums: List<AlbumInfo>, songs: List<SearchResult>)
-data class AlbumInfo(browseId: String, title: String, thumbnailUrl: String)
-data class AlbumPage(title: String, artist: String, thumbnailUrl: String, year: String, songs: List<SearchResult>)
+data class ArtistPage(name: String, thumbnailUrl: String, description: String?, songs: List<SearchResult>, albums: List<AlbumInfo>)
+data class AlbumInfo(browseId: String, title: String, thumbnailUrl: String, artist: String)
+data class AlbumPage(title: String, artist: String, thumbnailUrl: String, year: String?, tracks: List<SearchResult>)
 ```
-
-### AudioHeaderStore
-
-In-memory cache for HTTP headers (cookies, PoToken, etc.) extracted by yt-dlp. Keys are video IDs, values are `Map<String, String>` header maps. ExoPlayer reads from this store when creating data sources.
 
 ### SearchRepository
 
-Wraps `InnertubeClient` for search operations. Manages search history via `SearchHistoryDao`.
-
-### MediaExtractionRepository
-
-Uses yt-dlp (via `youtubedl-android` library) to extract audio URLs. Returns `AudioExtractionResult` containing the streaming URL and HTTP headers.
+Wraps `InnertubeClient` for all network operations. Provides `search()`, `searchWithFilter()`, `getUpNext()`, `getArtistPage()`, `getAlbumPage()`, `getSuggestions()`.
 
 ### LyricsProvider
 
-Fetches lyrics from a third-party API. Returns plain-text lyrics.
-
-### TrackMetadata
-
-Sidecar model for offline tracks:
-```kotlin
-data class TrackMetadata(
-    val songId: String,
-    val title: String,
-    val artist: String,
-    val artworkUrl: String?,
-    val resolvedStreamingUrl: String?,
-)
-```
+Fetches lyrics from YouTube Music's internal API. Returns plain-text lyrics.
 
 ---
 
@@ -289,7 +284,7 @@ A `MediaSessionService` — the core of background playback.
 
 **Lifecycle:**
 1. `onCreate()` → builds ExoPlayer, MediaSession, audio sink, renderers
-2. ExoPlayer is configured with custom `DefaultDataSource` → OkHttp → yt-dlp headers
+2. ExoPlayer configured with custom `DefaultDataSource` → OkHttp → yt-dlp headers
 3. `MediaSession` handles notification, Bluetooth, lockscreen controls
 4. `onIsPlayingChanged()` → initializes audio effects when AudioTrack is active
 5. `onDestroy()` → releases all resources
@@ -299,8 +294,6 @@ A `MediaSessionService` — the core of background playback.
 ```
 ExoPlayer.Builder
 ├── RenderersFactory (audio-only, no video)
-│   └── MediaCodecAudioRenderer → DefaultAudioSink
-│       └── DefaultAudioProcessorChain(SilenceSkippingAudioProcessor)
 ├── DefaultMediaSourceFactory
 │   └── CacheDataSource → SimpleCache (2 GB disk)
 │       └── OkHttpDataSource (with yt-dlp headers)
@@ -332,77 +325,83 @@ AudioTrack (system audio output)
 
 ### Queue Management
 
-- **QueuePersistenceManager** — saves/restores queue to Room DB (`QueueEntity`)
-- **PlayerViewModel** — manages play/pause, skip, seek, shuffle, loop, queue manipulation
+- `PlayerViewModel` manages play/pause, skip, seek, shuffle, loop, queue manipulation
 - Queue is a `MutableList<SearchResult>` with current index tracking
+- Queue can be persisted via `QueueDao`
 
 ### Sleep Timer
 
-- **SleepTimerManager** — `CountDownTimer` wrapper
+- `SleepTimerManager` — `CountDownTimer` wrapper
 - Pauses playback when timer expires
 - UI via `SleepTimerDialog` (15/30/45/60 min options)
 
-### Player Event Listener
+---
 
-Handles:
-- `onPlaybackStateChanged` — IDLE/BUFFERING/READY/ENDED logging
-- `onPlayerError` — error logging
-- `onMediaItemTransition` — updates `currentSongId` for header injection
-- `onIsPlayingChanged` — initializes equalizer on first play
+## 7. State Management — SharedMusicState
+
+`SharedMusicState` is the **single source of truth** for all shared application state. It is a `@Singleton` injected via Hilt.
+
+### Reactive StateFlows
+
+| Flow | Type | Description |
+|------|------|-------------|
+| `recentlyPlayed` | `Flow<List<TrackEntity>>` | Tracks sorted by `lastPlayedAt DESC` |
+| `mostPlayed` | `Flow<List<TrackEntity>>` | Tracks sorted by `playCount DESC` |
+| `allTracks` | `Flow<List<TrackEntity>>` | All tracks in library |
+| `favoriteIds` | `Flow<Set<String>>` | Set of favorited songIds |
+| `favoriteTracks` | `Flow<List<TrackEntity>>` | Full TrackEntity objects for favorites |
+| `playlists` | `Flow<List<PlaylistEntity>>` | All playlists |
+
+### Actions
+
+| Method | Description |
+|--------|-------------|
+| `markAsPlayed(songId)` | Updates `lastPlayedAt` + increments `playCount` |
+| `savePlaybackPosition(songId, posMs, durMs)` | Saves playback resume position |
+| `saveTrack(track)` | Upserts a track into the library |
+| `toggleFavorite(songId)` | Adds/removes from favorites |
+| `isFavorite(songId)` | Suspend check for favorite status |
+| `createPlaylist(name)` | Creates a new empty playlist |
+| `renamePlaylist(playlistId, newName)` | Renames a playlist |
+| `deletePlaylist(playlistId)` | Deletes playlist and its track mappings |
+| `addTrackToPlaylist(playlistId, songId)` | Atomically adds track (prevents race condition) |
+| `removeTrackFromPlaylist(playlistId, songId)` | Removes track from playlist |
+
+### Design Principle
+
+All screens observe `SharedMusicState` flows instead of maintaining their own copies. This eliminates state synchronization bugs (e.g., favorites not updating across screens, duplicate play count increments).
 
 ---
 
-## 7. Download & Offline System
+## 8. Download & Offline System
 
-### OfflineDownloadManager
+### DownloadManager
 
-Downloads tracks to `/sdcard/Music/MusicFlow/`.
+Queue-based download system with support for concurrent downloads.
 
 **Download flow:**
-1. Extract audio URL via `MediaExtractionRepository` (yt-dlp)
-2. Download `.m4a` file via OkHttp
-3. Download `.jpg` artwork
-4. Create `.meta.json` sidecar with metadata
-5. Insert into `OfflineTrackEntity` in Room DB
-6. Create `.nomedia` file to prevent gallery indexing
+1. Enqueue track (deduplication by songId)
+2. Extract audio URL via `MediaExtractionRepository` (yt-dlp)
+3. Download `.m4a` file via OkHttp
+4. Download `.jpg` artwork
+5. Create `.meta.json` sidecar with metadata
+6. Update `DownloadQueueEntity` status
+7. Process next in queue
 
-**File structure per track:**
-```
-/sdcard/Music/MusicFlow/
-├── {videoId}.m4a          # Audio file
-├── {videoId}.jpg          # Artwork
-├── {videoId}.meta.json    # Metadata sidecar
-└── .nomedia               # Prevents gallery display
-```
-
-**Features:**
-- Wifi-only mode (configurable)
-- Duplicate detection (by songId and filePath)
-- Bulk delete all downloads
-- Cache size calculation
+**Queue features:**
+- Max concurrent downloads: configurable
+- Status tracking: QUEUED, DOWNLOADING, COMPLETED, FAILED, PAUSED, CANCELLED
+- Progress tracking with speed calculation
+- Auto-retry failed downloads (MAX_RETRIES = 3)
+- Persists state via `DownloadQueueDao`
 
 ### MediaStoreReconciliationWorker
 
 Background worker that runs once per app startup. Scans `/sdcard/Music/MusicFlow/` for `.m4a` files that may exist on disk but not in the database.
 
-**Process:**
-1. List all `.m4a` files in MusicFlow directory
-2. For each file, check if `songId` exists in `OfflineTrackDao`
-3. If not, read `.meta.json` sidecar for metadata
-4. Upsert into `TrackEntity` and `OfflineTrackEntity`
-
-### Download Settings
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `downloadQuality` | "High" | Audio quality selection |
-| `wifiOnly` | true | Only download on WiFi |
-| `autoDownloadLiked` | false | Auto-download favorited tracks |
-| `smartDownloads` | false | Smart download suggestions |
-
 ---
 
-## 8. Backup & Restore
+## 9. Backup & Restore
 
 ### LocalBackupManager
 
@@ -415,24 +414,19 @@ Background worker that runs once per app startup. Scans `/sdcard/Music/MusicFlow
 
 **Restore process:**
 1. Validate backup file exists and has reasonable size
-2. Stop Room DB (trigger `fallbackToDestructiveMigration`)
+2. Close Room DB connection (prevents stale singleton reference)
 3. Overwrite database file from backup
 4. Delete WAL/SHM files
-5. Set `pending_restore_dialog` flag in SharedPreferences
-6. On next launch, `MusicFlowApplication.onCreate()` restores BEFORE Room initializes
+5. App restarts after restore to reinitialize Room with the restored database
 
 **Safety:**
 - Restore validates DB size (> 0 bytes)
-- Restore checks track count (> 0 tracks)
-- User confirms keep/restore via dialog in `MainActivity`
-
-### DatabaseBackupWorker
-
-Periodic WorkManager worker for automatic backups. Runs in the background.
+- User confirms keep/restore via dialog in `SettingsScreen`
+- App restarts to ensure clean state
 
 ---
 
-## 9. Background Workers
+## 10. Background Workers
 
 ### MediaStoreReconciliationWorker
 
@@ -440,25 +434,22 @@ Periodic WorkManager worker for automatic backups. Runs in the background.
 |----------|-------|
 | Trigger | Once per app startup |
 | Policy | `ExistingWorkPolicy.KEEP` |
-| Constraints | None (runs immediately) |
-| Output | None |
 
-**Purpose:** Ensures any `.m4a` files added to the MusicFlow directory externally (e.g., file manager) are registered in the database.
+**Purpose:** Ensures any `.m4a` files added externally are registered in the database.
 
 ### DatabaseBackupWorker
 
 | Property | Value |
 |----------|-------|
 | Trigger | Periodic (WorkManager) |
-| Constraints | None |
 
 **Purpose:** Automatic backup of the database.
 
 ---
 
-## 10. Settings & Preferences
+## 11. Settings & Preferences
 
-All preferences use **Jetpack DataStore** (not SharedPreferences).
+All preferences use **Jetpack DataStore**.
 
 ### ThemePreferences
 
@@ -487,12 +478,10 @@ All preferences use **Jetpack DataStore** (not SharedPreferences).
 |-----|------|---------|-------------|
 | `download_quality` | String | `"High"` | Audio quality |
 | `wifi_only` | Boolean | `true` | WiFi-only downloads |
-| `auto_download_liked` | Boolean | `false` | Auto-download favorites |
-| `smart_downloads` | Boolean | `false` | Smart suggestions |
 
 ---
 
-## 11. UI Layer — Screens & Navigation
+## 12. UI Layer — Screens & Navigation
 
 ### Navigation
 
@@ -516,34 +505,111 @@ Deep Links:
 
 | Screen | ViewModel | Description |
 |--------|-----------|-------------|
-| `HomeScreen` | `LibraryViewModel` | Recently played, playlists, quick actions (Mood Mix, Daily Mix), notifications |
-| `SearchScreen` | `SearchViewModel` | Search bar, suggestions, results grid, search history, filter tabs |
-| `LibraryScreen` | `LibraryViewModel` | Favorites/All tabs, offline tracks, playlist management |
+| `HomeScreen` | `HomeViewModel` | Greeting, quick actions, continue listening, recently played, mixes, per-playlist carousels, favorites, trending |
+| `SearchScreen` | `SearchViewModel` | Search bar, suggestions, results with filter tabs (Songs, Artists, Albums, Playlists) |
+| `LibraryScreen` | `LibraryViewModel` | Library tracks with sort (Title A-Z, Artist A-Z, Recently Played, Most Played), playlists |
 | `SettingsScreen` | — | Theme, language, skip silence, volume norm, equalizer, engine info, backup/restore, about |
-| `DownloadsScreen` | — | Offline tracks list, download settings, storage management (cache/delete) |
-| `OnboardingScreen` | — | Language selection on first launch |
-| `PlaylistDetailScreen` | `PlaylistViewModel` | Playlist tracks, add/remove, play all |
-| `ArtistScreen` | `ArtistViewModel` | Artist info, albums, top songs |
-| `AlbumScreen` | `AlbumViewModel` | Album info, track list |
+| `DownloadsScreen` | — | Offline tracks, download settings |
+| `PlaylistDetailScreen` | `PlaylistViewModel` | Playlist tracks, rename, delete, duplicate, play all |
+| `ArtistScreen` | `ArtistViewModel` | Artist info, songs, albums with error retry |
+| `AlbumScreen` | `AlbumViewModel` | Album info, tracks with error retry |
 
 ---
 
-## 12. UI Layer — Components
+## 13. UI Layer — Components
 
 | Component | Used In | Description |
 |-----------|---------|-------------|
 | `MiniPlayer` | `MainActivity` | Persistent bottom bar showing current track, play/pause, progress |
 | `MainPlayerScreen` | `MainActivity` | Full-screen player with seek, like, shuffle, loop, lyrics, sleep timer, queue |
-| `QueueSheet` | `MainActivity` | Bottom sheet showing upcoming tracks, reorderable |
+| `QueueSheet` | `MainActivity` | Bottom sheet showing upcoming tracks |
 | `SleepTimerDialog` | `MainActivity` | Timer duration picker |
 | `AddToPlaylistDialog` | `MainActivity` | Playlist selection + create new |
-| `SongContextMenu` | `MainActivity` | Long-press menu: share, add to playlist, play next, enqueue, go to artist/album, download |
+| `SongContextMenu` | `MainActivity` | Long-press menu with all track actions |
 | `LyricsOverlay` | `MainPlayerScreen` | Scrolling lyrics display |
 | `ShimmerLoading` | Various | Skeleton loading animation |
 
 ---
 
-## 13. Theme System
+## 14. Design System — Infinity Stream V2
+
+A comprehensive design system for premium dark UI with layered surfaces, glassmorphism, dynamic colors, and micro-animations.
+
+### Design Tokens (`MFTokens`)
+
+| Category | Token | Value |
+|----------|-------|-------|
+| **Spacing** | `SpacingXXS` through `Spacing6XL` | 4.dp → 64.dp |
+| **Radius** | `SmallRadius` | 8.dp |
+| | `MediumRadius` | 16.dp (RoundedCornerShape) |
+| | `LargeRadius` | 24.dp |
+| | `FullRadius` | 100.dp |
+| **Elevation** | `ElevationNone/Small/Medium/Large/XL` | 0–24.dp |
+| **Animation** | `FastDuration` | 150ms |
+| | `NormalDuration` | 300ms |
+| | `SlowDuration` | 500ms |
+| **Component** | `MiniPlayerHeight` | 64.dp |
+| | `BottomNavHeight` | 64.dp |
+| | `PlayButtonSize` | 64.dp |
+| **Screen** | `ScreenHorizontalPadding` | 20.dp |
+| | `SectionSpacing` | 28.dp |
+| | `SectionHeaderTextSize` | 22.sp |
+
+### Layered Surface Colors (`MFColors`)
+
+| Token | Hex | Purpose |
+|-------|-----|---------|
+| `Background` | `#0B0B0E` | App background (near-black, OLED-safe) |
+| `Surface` | `#15161A` | Primary surface |
+| `Card` | `#1B1C20` | Card backgrounds |
+| `Elevated` | `#22242A` | Elevated elements (search bars, chips) |
+| `Overlay` | `#2A2C33` | Dialogs, modals |
+| `Accent` | `#1ED760` | Emerald accent (buttons, active states) |
+| `TextPrimary` | `#FFFFFF` | Primary text |
+| `TextSecondary` | `#B3B3B3` | Secondary text |
+| `TextTertiary` | `#727272` | Disabled/hint text |
+| `TextOnAccent` | `#000000` | Text on accent backgrounds |
+| `Divider` | `#2A2C33` | Subtle borders |
+
+### Backward-Compatible Aliases
+
+Old color tokens are preserved as extension properties:
+```kotlin
+val AccentGreen get() = MFColors.Accent
+val DarkSurface get() = MFColors.Surface
+val DarkSurfaceVariant get() = MFColors.Elevated
+val OnBackground get() = MFColors.TextPrimary
+val OnBackgroundVariant get() = MFColors.TextSecondary
+val ErrorRed get() = MFColors.Error
+```
+
+### Glassmorphism (`MFGlass`)
+
+Three glass composables with semi-transparent backgrounds, subtle borders, and blur effects:
+- `MiniPlayerGlass` — floating mini player card
+- `BottomNavGlass` — floating bottom navigation
+- `DialogGlass` — alert dialogs and modals
+
+### Micro-Animations (`MFAnimations`)
+
+| Animation | Description |
+|-----------|-------------|
+| `pressScale` | Spring-based scale on press (0.95 → 1.0) |
+| `glow` | Animated shadow/elevation pulse |
+| `accentGlow` | Emerald glow behind accent elements |
+| `dynamicGlow` | Palette-derived glow from artwork |
+| `mfRipple` | Accent-tinted ripple effect |
+
+### Dynamic Colors (`MFDynamicColors`)
+
+Extracts dominant, vibrant, and darkMuted colors from artwork URLs using Android's Palette API. Used for:
+- Full-screen player gradient background
+- Album art ambient glow
+- Mini player waveform accent color
+
+---
+
+## 15. Theme System
 
 ### ThemePreferences
 
@@ -554,23 +620,32 @@ Supports three modes via `ThemeMode` enum:
 
 ### Color Palette
 
-| Token | Light | Dark |
-|-------|-------|------|
-| `AccentGreen` | `#1DB954` | `#1DB954` |
-| `DarkSurface` | `#121212` | `#121212` |
-| `OnBackground` | `#FFFFFF` | `#FFFFFF` |
-| `OnBackgroundVariant` | `#B3B3B3` | `#B3B3B3` |
-| `ErrorRed` | `#E53935` | `#E53935` |
+Material 3 theme uses `MFColors` layered surfaces (see Section 14). The old flat palette is replaced:
 
-Material 3 dynamic color is NOT used — fixed Spotify-inspired dark theme.
+| Old Token | New Token | Value |
+|-----------|-----------|-------|
+| `AccentGreen` | `MFColors.Accent` | `#1ED760` |
+| `DarkSurface` | `MFColors.Surface` | `#15161A` |
+| `OnBackground` | `MFColors.TextPrimary` | `#FFFFFF` |
+| `OnBackgroundVariant` | `MFColors.TextSecondary` | `#B3B3B3` |
+| `ErrorRed` | `MFColors.Error` | `#E53935` |
+
+### Typography
+
+`MFTypography` provides scaled type hierarchy:
+- Hero: 32.sp, ExtraBold (w800), letterSpacing -0.5
+- Section Header: 22.sp, Bold (w700), letterSpacing -0.4
+- Body Large: 16.sp
+- Body Medium: 14.sp
+- Label: 12.sp
 
 ---
 
-## 14. Audio Engine (yt-dlp)
+## 15. Audio Engine (yt-dlp)
 
 ### YoutubeDL Integration
 
-Uses `youtubedl-android` library (v0.18.1) for on-device audio extraction.
+Uses `youtubedl-android` library for on-device audio extraction.
 
 **Initialization:**
 - Runs in `MusicFlowApplication.onCreate()`
@@ -590,7 +665,7 @@ YouTube's CDN requires specific cookies and PoToken headers. Without them, reque
 
 ---
 
-## 15. Permissions & Manifest
+## 16. Permissions & Manifest
 
 ### Permissions
 
@@ -617,7 +692,7 @@ YouTube's CDN requires specific cookies and PoToken headers. Without them, reque
 
 ---
 
-## 16. Build Configuration
+## 17. Build Configuration
 
 ### Dependencies Summary
 
@@ -625,7 +700,6 @@ YouTube's CDN requires specific cookies and PoToken headers. Without them, reque
 |----------|---------|---------|
 | **UI** | Compose BOM | 2024.09.00 |
 | **UI** | Material 3 | (via BOM) |
-| **UI** | Material Icons Extended | (via BOM) |
 | **Navigation** | Navigation Compose | 2.7.7 |
 | **Lifecycle** | ViewModel Compose | 2.7.0 |
 | **Image** | Coil Compose | 2.5.0 |
@@ -641,7 +715,6 @@ YouTube's CDN requires specific cookies and PoToken headers. Without them, reque
 | **Prefs** | DataStore Preferences | 1.1.1 |
 | **Background** | WorkManager | 2.9.0 |
 | **Engine** | youtubedl-android | 0.18.1 |
-| **Engine** | youtubedl-android FFmpeg | 0.18.1 |
 
 ### Build Variants
 
@@ -654,20 +727,18 @@ YouTube's CDN requires specific cookies and PoToken headers. Without them, reque
 
 ---
 
-## 17. Known Issues & Limitations
+## 18. Known Issues & Limitations
 
 ### Equalizer
 
 - **Android AudioEffect API broken on vivo devices** — `BassBoost`, `Virtualizer`, `Equalizer`, `LoudnessEnhancer` all return error -3 (`ERROR_NO_INIT`)
 - Software-based `AudioProcessor` approach causes audio corruption in Media3 1.2.1
 - Equalizer works on Samsung, Pixel, and other devices with functional AudioEffect HAL
-- The equalizer UI and code remain in the app — it functions on supported devices
 
 ### Media3 Version
 
 - Using Media3 1.2.1 (older). Newer versions (1.5.x+) have improved `BaseAudioProcessor` support
 - `DefaultAudioSink.Builder` does not expose `setAudioSessionId()` in this version
-- `ExoPlayer.Builder` does not support `setAudioSessionId()` in this version
 
 ### Database
 
@@ -678,7 +749,6 @@ YouTube's CDN requires specific cookies and PoToken headers. Without them, reque
 
 - Requires `MANAGE_EXTERNAL_STORAGE` for writing to `/sdcard/Music/`
 - `.nomedia` file prevents downloaded artwork from appearing in gallery
-- Downloaded tracks are NOT indexed by MediaStore (intentional)
 
 ### Network
 
@@ -687,4 +757,37 @@ YouTube's CDN requires specific cookies and PoToken headers. Without them, reque
 
 ---
 
-*Report generated from MusicFlow codebase analysis — 68 Kotlin source files, full coverage.*
+## 20. Bug Fixes Applied
+
+### Critical Bugs (Session 2 — July 13, 2026)
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| Favorites not persisting | Double toggle: `toggleFavoriteAndMaybeDownload()` called both `libraryViewModel` and `playerViewModel.toggleLikeCurrentTrack()`, each toggling `SharedMusicState.toggleFavorite()` | Removed `playerViewModel.toggleLikeCurrentTrack()` |
+| Like button out of sync | `PlayerViewModel.isCurrentTrackLiked` not synced with `SharedMusicState` | Added observation of `sharedMusicState.favoriteIds` |
+| Play count double-incrementing | `saveTrackToLibrary` called upsert (+1) AND `sharedMusicState.markAsPlayed()` (+1) | Removed redundant `markAsPlayed()` call |
+| Backup/restore crash | Room DB singleton still pointed to old deleted file after restore | Close DB before file replacement + app restart |
+| Playlist track race condition | Read-then-write of track position not atomic | `@Transaction` annotated `addTrackToPlaylistAtomic()` |
+| Search filters not navigating | ARTISTS/ALBUMS/PLAYLISTS filters played tracks | Added `onArtistSelected`/`onAlbumSelected` callbacks |
+| Sort options non-functional | "Title A-Z" and "Artist A-Z" were stubs | Added `TITLE_ASC`/`ARTIST_ASC` filter cases |
+| NPE crash on startup | `playlistTrackJobs` declared after `init` block; Kotlin initializes in declaration order | Moved `playlistTrackJobs` before `init` |
+
+### Design System Integration (Session 3 — July 14, 2026)
+
+| Area | Change |
+|------|--------|
+| Color system | Rewrote `Color.kt` with layered surfaces + backward-compat aliases |
+| Theme | Dark-only, no pure black, Material 3 seeded from `MFColors` |
+| Typography | ExtraBold hero titles, Bold section headers |
+| MiniPlayer | Floating glass card, waveform animation, generous spacing |
+| BottomNav | Floating glass, no pill, glowing active icon |
+| Player transition | Fade + slide, `MFColors.Background` |
+| HomeScreen | Hero greeting, chevron "See All", design system throughout |
+| LibraryScreen | Filter chips, playlist cards, section headers on design tokens |
+| SearchScreen | Search bar, result items, thumbnails on design tokens |
+| SettingsScreen | Section headers, background, spacing on design tokens |
+| MainPlayerScreen | All colors/spacing on `MFColors`/`MFTokens` |
+
+---
+
+*Report generated from MusicFlow codebase analysis — 74 Kotlin source files, full coverage.*

@@ -55,6 +55,40 @@ interface TrackDao {
     fun observeAllTracks(): Flow<List<TrackEntity>>
 
     /**
+     * Observes tracks sorted by last played time (most recent first).
+     * Used for "Recently Played" and "Continue Listening" sections.
+     */
+    @Query("SELECT * FROM tracks WHERE last_played_at > 0 ORDER BY last_played_at DESC")
+    fun observeRecentlyPlayed(): Flow<List<TrackEntity>>
+
+    /**
+     * Observes tracks sorted by play count (most played first).
+     * Used for "Most Played" section.
+     */
+    @Query("SELECT * FROM tracks WHERE play_count > 0 ORDER BY play_count DESC, last_played_at DESC")
+    fun observeMostPlayed(): Flow<List<TrackEntity>>
+
+    /**
+     * Updates the last_played_at timestamp and increments play_count for a track.
+     * Called every time a track starts playing.
+     */
+    @Query("UPDATE tracks SET last_played_at = :timestamp, play_count = play_count + 1 WHERE song_id = :songId")
+    suspend fun markAsPlayed(songId: String, timestamp: Long = System.currentTimeMillis())
+
+    /**
+     * Saves the playback position and duration for a track.
+     * Enables "Continue Listening" to show accurate progress.
+     */
+    @Query("UPDATE tracks SET last_played_position_ms = :positionMs, last_played_duration_ms = :durationMs WHERE song_id = :songId")
+    suspend fun savePlaybackPosition(songId: String, positionMs: Long, durationMs: Long)
+
+    /**
+     * Retrieves recently played tracks as a one-shot query.
+     */
+    @Query("SELECT * FROM tracks WHERE last_played_at > 0 ORDER BY last_played_at DESC LIMIT :limit")
+    suspend fun getRecentlyPlayed(limit: Int = 20): List<TrackEntity>
+
+    /**
      * Retrieves all cached tracks as a one-shot query.
      *
      * Use this for non-reactive operations (e.g. queue construction,

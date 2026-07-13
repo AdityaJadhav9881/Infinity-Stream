@@ -1,9 +1,19 @@
 package com.musicflow.app.ui.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,8 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Icon
@@ -24,64 +33,36 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.musicflow.app.data.TrackMetadata
-import com.musicflow.app.ui.theme.AccentGreen
-import com.musicflow.app.ui.theme.DarkSurfaceContainer
-import com.musicflow.app.ui.theme.OnBackground
-import com.musicflow.app.ui.theme.OnBackgroundVariant
-import com.musicflow.app.ui.theme.ProgressIndicator
-import com.musicflow.app.ui.theme.ProgressTrack
+import com.musicflow.app.ui.theme.MFColors
+import com.musicflow.app.ui.theme.MFGlass
+import com.musicflow.app.ui.theme.MFTokens
 
 /**
- * Persistent mini player bar displayed at the bottom of the screen.
+ * Premium Mini Player — Floating glass card with luxurious spacing.
  *
- * This composable shows the currently playing track and provides
- * quick access to play/pause without navigating to the full player.
- *
- * ## Layout
- * ```
- * ┌─────────────────────────────────────────┐
- * │ [Art] Title              ▶/⏸           │
- * │        Artist ──────────────────────    │
- * │             ▓▓▓▓▓▓░░░░░░░░░░░░░░░░     │  ← Progress bar
- * └─────────────────────────────────────────┘
- * ```
- *
- * ## Usage
- * Place this composable at the bottom of a `Scaffold` or `Box` layout:
- * ```kotlin
- * Box(Modifier.fillMaxSize()) {
- *     // Main content here
- *
- *     if (currentTrack != null) {
- *         MiniPlayer(
- *             track = currentTrack,
- *             isPlaying = isPlaying,
- *             progress = progress,
- *             onClick = { navigateToFullPlayer() },
- *             onPlayPause = { togglePlayPause() },
- *             modifier = Modifier.align(Alignment.BottomCenter),
- *         )
- *     }
- * }
- * ```
- *
- * @param track The current track metadata (null hides the mini player).
- * @param isPlaying Whether the player is currently playing.
- * @param progress Current progress as a float (0f to 1f).
- * @param onClick Callback when the mini player is tapped (expand to full).
- * @param onPlayPause Callback when play/pause button is tapped.
- * @param modifier Modifier applied to the outer container.
+ * Design principles:
+ * - Generous whitespace between all elements
+ * - Artwork and waveform grouped on left
+ * - Play button floats near right edge with room to breathe
+ * - Every element has space to exist
+ * - Feels calm, not compressed
  */
 @Composable
 fun MiniPlayer(
@@ -90,113 +71,164 @@ fun MiniPlayer(
     progress: Float,
     onClick: () -> Unit,
     onPlayPause: () -> Unit,
-    onAddToPlaylist: () -> Unit = {},
+    @Suppress("UNUSED_PARAMETER") onAddToPlaylist: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (track == null) return
 
-    Column(
+    // Waveform animation
+    val infiniteTransition = rememberInfiniteTransition(label = "waveform")
+    val bar1 by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "bar1",
+    )
+    val bar2 by infiniteTransition.animateFloat(
+        initialValue = 0.6f, targetValue = 0.2f,
+        animationSpec = infiniteRepeatable(tween(350, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "bar2",
+    )
+    val bar3 by infiniteTransition.animateFloat(
+        initialValue = 0.4f, targetValue = 0.9f,
+        animationSpec = infiniteRepeatable(tween(500, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "bar3",
+    )
+
+    // Play button scale animation
+    val playScale by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessHigh,
+        ),
+        label = "playScale",
+    )
+
+    MFGlass.MiniPlayerGlass(
         modifier = modifier
             .fillMaxWidth()
-            .background(DarkSurfaceContainer)
+            .padding(horizontal = 14.dp, vertical = 6.dp)
             .clickable(onClick = onClick),
     ) {
-        // ── Progress Bar (thin, at top) ─────────────────────────────
+        // Progress bar at top
         LinearProgressIndicator(
             progress = { progress.coerceIn(0f, 1f) },
-            color = ProgressIndicator,
-            trackColor = ProgressTrack,
+            color = MFColors.Accent,
+            trackColor = MFColors.ProgressTrack,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(2.dp),
+                .height(2.dp)
+                .align(Alignment.TopCenter),
         )
 
-        // ── Content Row ─────────────────────────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(start = 16.dp, end = 20.dp, top = 14.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Album Art Thumbnail
-            MiniAlbumArt(
-                artworkUrl = track.artworkUrl,
-                modifier = Modifier.size(48.dp),
-            )
+            // Album Art with glow
+            Box(contentAlignment = Alignment.Center) {
+                if (isPlaying) {
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .background(MFColors.AccentGlow)
+                    )
+                }
+                MiniAlbumArt(
+                    artworkUrl = track.artworkUrl,
+                    isPlaying = isPlaying,
+                    modifier = Modifier.size(50.dp),
+                )
+            }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            // Waveform (close to artwork)
+            if (isPlaying) {
+                Spacer(modifier = Modifier.width(14.dp))
+                Row(
+                    modifier = Modifier
+                        .width(20.dp)
+                        .height(28.dp)
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(MFColors.Accent.copy(alpha = 0.10f))
+                        .padding(horizontal = 4.dp, vertical = 5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.5.dp),
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    Box(Modifier.weight(1f).fillMaxWidth().height((bar1 * 14).dp.coerceAtMost(14.dp)).clip(RoundedCornerShape(1.5.dp)).background(MFColors.Accent))
+                    Box(Modifier.weight(1f).fillMaxWidth().height((bar2 * 14).dp.coerceAtMost(14.dp)).clip(RoundedCornerShape(1.5.dp)).background(MFColors.Accent))
+                    Box(Modifier.weight(1f).fillMaxWidth().height((bar3 * 14).dp.coerceAtMost(14.dp)).clip(RoundedCornerShape(1.5.dp)).background(MFColors.Accent))
+                }
+            }
 
-            // Track Info (expanded to fill available space)
-            Column(
-                modifier = Modifier.weight(1f),
-            ) {
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Track Info — fills available space
+            Box(modifier = Modifier.weight(1f)) {
                 Text(
                     text = track.title.ifBlank { "Unknown Title" },
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = OnBackground,
+                    color = MFColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-
                 Text(
                     text = track.artist.ifBlank { "Unknown Artist" },
                     style = MaterialTheme.typography.bodySmall,
-                    color = OnBackgroundVariant,
+                    color = MFColors.TextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 20.dp),
                 )
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(20.dp))
 
-            // Add to Playlist Button
-            IconButton(
-                onClick = onAddToPlaylist,
-                modifier = Modifier.size(36.dp),
+            // Play/Pause — floats near right edge
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .scale(playScale)
+                    .shadow(
+                        elevation = MFTokens.ElevationLow,
+                        shape = CircleShape,
+                        ambientColor = MFColors.Accent.copy(alpha = 0.25f),
+                        spotColor = MFColors.Accent.copy(alpha = 0.15f),
+                    )
+                    .clip(CircleShape)
+                    .background(MFColors.Accent)
+                    .clickable(onClick = onPlayPause),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = "Add to Playlist",
-                    tint = AccentGreen,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-
-            // Play/Pause Button
-            IconButton(
-                onClick = onPlayPause,
-                modifier = Modifier.size(40.dp),
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) {
-                        Icons.Rounded.Pause
-                    } else {
-                        Icons.Rounded.PlayArrow
-                    },
+                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = OnBackground,
-                    modifier = Modifier.size(28.dp),
+                    tint = MFColors.TextOnAccent,
+                    modifier = Modifier.size(24.dp),
                 )
             }
         }
     }
 }
 
-// ── Mini Album Art ──────────────────────────────────────────────────────
-
-/**
- * Small circular album art thumbnail for the mini player.
- */
 @Composable
 private fun MiniAlbumArt(
     artworkUrl: String?,
+    isPlaying: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier
-            .clip(CircleShape)
-            .background(OnBackgroundVariant.copy(alpha = 0.2f)),
+            .clip(RoundedCornerShape(14.dp))
+            .background(MFColors.Elevated)
+            .border(
+                width = if (isPlaying) 1.5.dp else 0.dp,
+                color = if (isPlaying) MFColors.Accent.copy(alpha = 0.25f) else Color.Transparent,
+                shape = RoundedCornerShape(14.dp),
+            ),
         contentAlignment = Alignment.Center,
     ) {
         if (artworkUrl != null) {
@@ -211,10 +243,10 @@ private fun MiniAlbumArt(
             )
         } else {
             Icon(
-                imageVector = Icons.Filled.MusicNote,
+                imageVector = Icons.Rounded.MusicNote,
                 contentDescription = null,
-                tint = OnBackgroundVariant,
-                modifier = Modifier.size(24.dp),
+                tint = MFColors.TextTertiary,
+                modifier = Modifier.size(22.dp),
             )
         }
     }
