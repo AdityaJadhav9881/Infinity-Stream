@@ -70,20 +70,26 @@ import com.musicflow.app.ui.screens.HomeViewModel
 import com.musicflow.app.ui.screens.LibraryScreen
 import com.musicflow.app.ui.screens.LibraryFilter
 import com.musicflow.app.ui.screens.LibraryViewModel
+import com.musicflow.app.ui.screens.OnboardingResult
 import com.musicflow.app.ui.screens.OnboardingScreen
+import com.musicflow.app.ui.screens.UnauthorizedScreen
 import com.musicflow.app.ui.screens.PlaylistDetailScreen
 import com.musicflow.app.ui.screens.PlaylistViewModel
 import com.musicflow.app.ui.screens.PlayerViewModel
 import com.musicflow.app.ui.screens.SearchScreen
 import com.musicflow.app.ui.screens.SearchViewModel
 import com.musicflow.app.ui.screens.SettingsScreen
+import com.musicflow.app.ui.screens.UpdateScreen
+import com.musicflow.app.ui.screens.UpdateViewModel
 import com.musicflow.app.data.local.LocalBackupManager
+import com.musicflow.app.data.remote.InfinityMasterClient
 import com.musicflow.app.ui.theme.AccentGreen
 import com.musicflow.app.ui.theme.DarkSurface
 import com.musicflow.app.ui.theme.MFColors
 import com.musicflow.app.ui.theme.MusicFlowTheme
 import com.musicflow.app.ui.theme.OnBackground
 import com.musicflow.app.ui.theme.OnBackgroundVariant
+import com.musicflow.app.utils.DeviceIdProvider
 import com.musicflow.app.utils.EqualizerManager
 import com.musicflow.app.utils.LanguagePreferences
 import com.musicflow.app.utils.PlayerSettingsManager
@@ -102,6 +108,8 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var playerSettingsManager: PlayerSettingsManager
     @Inject lateinit var localBackupManager: LocalBackupManager
     @Inject lateinit var downloadSettingsManager: DownloadSettingsManager
+    @Inject lateinit var infinityMasterClient: InfinityMasterClient
+    @Inject lateinit var deviceIdProvider: DeviceIdProvider
 
     private lateinit var prefs: SharedPreferences
 
@@ -128,9 +136,34 @@ class MainActivity : ComponentActivity() {
         setContent {
             val themeMode by themePreferences.themeMode.collectAsState(initial = ThemeMode.DARK)
             val isOnboardingDone by languagePreferences.isOnboardingDone.collectAsState(initial = null)
+            var isDeviceDisabled by remember { mutableStateOf(false) }
+            var deviceStatusChecked by remember { mutableStateOf(false) }
 
             // Show dialog only if we just restored — ask to keep or discard
             var showRestoreConfirm by remember { mutableStateOf(shouldRestore) }
+
+            // Check device status on first launch — local first, then server
+            LaunchedEffect(Unit) {
+                if (!deviceStatusChecked) {
+                    // Check local disabled state FIRST — blocks immediately
+                    val locallyDisabled = deviceIdProvider.isDeviceDisabled()
+                    if (locallyDisabled) {
+                        isDeviceDisabled = true
+                        deviceStatusChecked = true
+                        return@LaunchedEffect
+                    }
+
+                    // Then check server
+                    try {
+                        val remotelyDisabled = infinityMasterClient.checkDeviceStatus().getOrNull() ?: false
+                        isDeviceDisabled = remotelyDisabled
+                    } catch (_: Exception) {
+                        // Network failed — re-check local in case it was set during this session
+                        isDeviceDisabled = deviceIdProvider.isDeviceDisabled()
+                    }
+                    deviceStatusChecked = true
+                }
+            }
 
             MusicFlowTheme(themeMode = themeMode) {
                 // Restore confirmation dialog — BLOCKS everything until decided
@@ -169,17 +202,30 @@ class MainActivity : ComponentActivity() {
 
                 when {
                     showRestoreConfirm -> { /* dialog blocks UI */ }
+                    isDeviceDisabled -> { UnauthorizedScreen() }
                     isOnboardingDone == null -> { /* loading */ }
                     isOnboardingDone == false -> {
-                        OnboardingScreen(onLanguageSelected = { languages ->
-                            kotlinx.coroutines.MainScope().launch {
-                                languagePreferences.setLanguages(languages)
-                                languagePreferences.setOnboardingDone()
+                        OnboardingScreen(
+                            onboardingData = OnboardingResult { fullName, howDidYouHear, languages ->
+                                kotlinx.coroutines.MainScope().launch {
+                                    languagePreferences.setLanguages(languages)
+                                    languagePreferences.setOnboardingDone()
+                                    deviceIdProvider.setFullName(fullName)
+                                    deviceIdProvider.setHowDidYouHear(howDidYouHear)
+                                    try {
+                                        infinityMasterClient.registerDevice(
+                                            fullName = fullName,
+                                            howDidYouHear = howDidYouHear
+                                        )
+                                    } catch (e: Exception) {
+                                        android.util.Log.w("MainActivity", "Device registration failed: ${e.message}")
+                                    }
+                                }
                             }
-                        })
+                        )
                     }
                     else -> {
-                        MusicFlowApp(themePreferences, languagePreferences, equalizerManager, playerSettingsManager, localBackupManager, downloadSettingsManager)
+                        MusicFlowApp(themePreferences, languagePreferences, equalizerManager, playerSettingsManager, localBackupManager, downloadSettingsManager, deviceIdProvider)
                     }
                 }
             }
@@ -269,6 +315,7 @@ private fun MusicFlowApp(
     playerSettingsManager: PlayerSettingsManager,
     localBackupManager: com.musicflow.app.data.local.LocalBackupManager,
     downloadSettingsManager: DownloadSettingsManager,
+    deviceIdProvider: DeviceIdProvider,
 ) {
     val navController = rememberNavController()
     val searchViewModel: SearchViewModel = hiltViewModel()
@@ -277,12 +324,14 @@ private fun MusicFlowApp(
     val libraryViewModel: LibraryViewModel = hiltViewModel()
     val playlistViewModel: PlaylistViewModel = hiltViewModel()
     val homeViewModel: HomeViewModel = hiltViewModel()
+    val updateViewModel: UpdateViewModel = hiltViewModel()
 
     val searchUiState by searchViewModel.uiState.collectAsState()
     val playerUiState by playerViewModel.uiState.collectAsState()
     val libraryUiState by libraryViewModel.uiState.collectAsState()
     val playlistUiState by playlistViewModel.uiState.collectAsState()
     val homeUiState by homeViewModel.uiState.collectAsState()
+    val updateUiState by updateViewModel.uiState.collectAsState()
 
     var showFullPlayer by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
@@ -298,6 +347,11 @@ private fun MusicFlowApp(
     val currentRoute = navBackStackEntry?.destination?.route
 
     val autoDownloadLiked by downloadSettingsManager.autoDownloadLiked.collectAsState(initial = false)
+    var userName by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        userName = deviceIdProvider.getFullName()
+    }
 
     // Helper: toggle favorite AND auto-download if setting is enabled
     // Uses SharedMusicState as single source of truth - updates propagate to all screens
@@ -399,6 +453,7 @@ private fun MusicFlowApp(
                                 onRetryTrending = { homeViewModel.loadTrending() },
                                 favoriteTracks = homeUiState.favoriteTracks,
                                 playlistTracks = homeUiState.playlistTracks,
+                                userName = userName,
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }
@@ -638,13 +693,14 @@ private fun MusicFlowApp(
                                 equalizerManager = equalizerManager,
                                 playerSettingsManager = playerSettingsManager,
                                 localBackupManager = localBackupManager,
+                                onCheckForUpdate = { updateViewModel.checkForUpdateFromSettings() },
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }
                         composable(DOWNLOADS_ROUTE) {
                             val downloadQuality by downloadSettingsManager.downloadQuality.collectAsState(initial = "High")
                             val wifiOnly by downloadSettingsManager.wifiOnly.collectAsState(initial = true)
-                            val autoDownloadLiked by downloadSettingsManager.autoDownloadLiked.collectAsState(initial = false)
+    val autoDownloadLiked by downloadSettingsManager.autoDownloadLiked.collectAsState(initial = false)
                             val smartDownloads by downloadSettingsManager.smartDownloads.collectAsState(initial = false)
 
                             DownloadsScreen(
@@ -786,6 +842,7 @@ private fun MusicFlowApp(
                         },
                         onQueueItemSelected = playerViewModel::skipToQueueItem,
                         onRemoveFromQueue = playerViewModel::removeFromQueue,
+                        playbackStatus = playerUiState.playbackStatus,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -882,6 +939,14 @@ private fun MusicFlowApp(
                     ))
                     playerViewModel.clearDownloadMessages()
                 }
+            }
+
+            // ── App Update Overlay ──────────────────────────────────────
+            if (updateUiState.isUpdateAvailable && !updateUiState.isDismissed) {
+                UpdateScreen(
+                    viewModel = updateViewModel,
+                    onDismiss = { },
+                )
             }
         }
     }

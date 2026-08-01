@@ -3,6 +3,7 @@ package com.musicflow.app.di
 import android.content.Context
 import androidx.room.Room
 import com.musicflow.app.data.local.AppDatabase
+import com.musicflow.app.data.local.Migrations
 import com.musicflow.app.data.local.dao.FavoriteDao
 import com.musicflow.app.data.local.dao.LyricsDao
 import com.musicflow.app.data.local.dao.OfflineTrackDao
@@ -34,6 +35,7 @@ object DatabaseModule {
         @ApplicationContext context: Context,
     ): AppDatabase {
         return AppDatabase.builder(context)
+            .addMigrations(*Migrations.ALL_MIGRATIONS)
             .fallbackToDestructiveMigration()
             .build()
     }

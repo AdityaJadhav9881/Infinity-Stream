@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,8 +29,9 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SouthWest
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -61,19 +63,11 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.musicflow.app.data.remote.SearchResult
 import com.musicflow.app.ui.components.ShimmerLoading
-import com.musicflow.app.ui.theme.AccentGreen
-import com.musicflow.app.ui.theme.Black
-import com.musicflow.app.ui.theme.DarkSurface
-import com.musicflow.app.ui.theme.DarkSurfaceVariant
 import com.musicflow.app.ui.theme.MFColors
+import com.musicflow.app.ui.theme.MFGlass
 import com.musicflow.app.ui.theme.MFTokens
-import com.musicflow.app.ui.theme.OnBackground
-import com.musicflow.app.ui.theme.OnBackgroundVariant
 import com.musicflow.app.data.local.entity.PlaylistEntity
 
-/**
- * Search screen with autocomplete suggestions, search history, and filters.
- */
 @Composable
 fun SearchScreen(
     uiState: SearchUiState,
@@ -115,41 +109,47 @@ fun SearchScreen(
                 .background(MFColors.Background)
                 .padding(horizontal = MFTokens.ScreenHorizontalPadding),
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // ── Search Bar ──────────────────────────────────────────
             Box(modifier = Modifier.fillMaxWidth()) {
-                SearchBar(
-                    query = uiState.query,
-                    onQueryChange = onSearchQueryChange,
-                    onClear = onClearSearch,
-                    isLoading = uiState.isLoading,
+                MFGlass.GlassPanel(
                     modifier = Modifier.fillMaxWidth(),
-                )
+                    cornerRadius = MFTokens.MediumRadius,
+                    alpha = 0.08f,
+                ) {
+                    SearchBar(
+                        query = uiState.query,
+                        onQueryChange = onSearchQueryChange,
+                        onClear = onClearSearch,
+                        isLoading = uiState.isLoading,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
 
-                // ── Suggestions Dropdown ────────────────────────────
                 if (showSuggestions) {
                     DropdownMenu(
                         expanded = showSuggestions,
                         onDismissRequest = onSuggestionsDismissed,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(DarkSurface),
+                            .background(MFColors.GlassLow)
+                            .border(width = 0.5.dp, color = MFColors.GlassBorder, shape = RoundedCornerShape(0.dp, 0.dp, 20.dp, 20.dp)),
                     ) {
                         uiState.suggestions.forEach { suggestion ->
                             DropdownMenuItem(
                                 text = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Search,
-                                            contentDescription = null,
-                                            tint = OnBackgroundVariant,
-                                            modifier = Modifier.size(16.dp),
-                                        )
-                                        Spacer(modifier = Modifier.width(12.dp))
+                                Icon(
+                                    imageVector = Icons.Filled.Search,
+                                    contentDescription = null,
+                                    tint = MFColors.TextTertiary,
+                                    modifier = Modifier.size(14.dp),
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
                                         Text(
                                             text = suggestion,
-                                            color = OnBackground,
+                                            color = MFColors.TextPrimary,
                                             style = MaterialTheme.typography.bodyMedium,
                                         )
                                     }
@@ -164,37 +164,42 @@ fun SearchScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // ── Filter Chips ────────────────────────────────────────
             if (uiState.query.isNotBlank() || uiState.results.isNotEmpty()) {
                 LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     items(SearchFilter.entries) { filter ->
                         val selected = uiState.selectedFilter == filter
-                        val bgColor = if (selected) AccentGreen else DarkSurfaceVariant
-                        val textColor = if (selected) Black else OnBackgroundVariant
-
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(bgColor)
-                                .clickable { onFilterChange(filter) }
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = filter.label,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = textColor,
-                            )
-                        }
+                        FilterChip(
+                            selected = selected,
+                            onClick = { onFilterChange(filter) },
+                            label = {
+                                Text(
+                                    text = filter.label,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = if (selected) MFColors.TextOnAccent else MFColors.TextSecondary,
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MFColors.Accent,
+                                containerColor = MFColors.GlassMid,
+                            ),
+                            shape = RoundedCornerShape(20.dp),
+                            border = FilterChipDefaults.filterChipBorder(
+                                borderColor = MFColors.GlassBorder,
+                                selectedBorderColor = MFColors.Accent.copy(alpha = 0.3f),
+                                enabled = true,
+                                selected = selected,
+                            ),
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
             }
 
             // ── Search History (when query is empty) ────────────────
@@ -207,10 +212,10 @@ fun SearchScreen(
                     Text(
                         text = "Recent Searches",
                         style = MaterialTheme.typography.titleSmall,
-                        color = OnBackgroundVariant,
+                        color = MFColors.TextSecondary,
                     )
                     TextButton(onClick = onClearHistory) {
-                        Text("Clear all", color = AccentGreen)
+                        Text("Clear all", color = MFColors.Accent)
                     }
                 }
 
@@ -227,42 +232,41 @@ fun SearchScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(RoundedCornerShape(10.dp))
                                 .clickable {
                                     onSearchQueryChange(query)
                                 }
-                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.History,
                                 contentDescription = null,
-                                tint = OnBackgroundVariant,
-                                modifier = Modifier.size(18.dp),
+                                tint = MFColors.TextTertiary,
+                                modifier = Modifier.size(16.dp),
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = query,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = OnBackground,
+                                color = MFColors.TextPrimary,
                                 modifier = Modifier.weight(1f),
                             )
                             IconButton(
                                 onClick = { onDeleteHistoryItem(query) },
-                                modifier = Modifier.size(24.dp),
+                                modifier = Modifier.size(22.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Clear,
                                     contentDescription = "Remove",
-                                    tint = OnBackgroundVariant,
-                                    modifier = Modifier.size(14.dp),
+                                    tint = MFColors.TextTertiary,
+                                    modifier = Modifier.size(12.dp),
                                 )
                             }
                         }
                     }
                 }
             } else {
-                // ── Search Results ──────────────────────────────────
                 when {
                     uiState.isLoading && uiState.results.isEmpty() -> {
                         ShimmerLoading(
@@ -284,14 +288,14 @@ fun SearchScreen(
                                 Icon(
                                     imageVector = Icons.Filled.MusicNote,
                                     contentDescription = null,
-                                    tint = OnBackgroundVariant,
-                                    modifier = Modifier.size(64.dp),
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = "No results found",
+                                    tint = MFColors.TextTertiary,
+                            modifier = Modifier.size(56.dp),
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    text = "No results found",
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = OnBackgroundVariant,
+                                    color = MFColors.TextSecondary,
                                 )
                             }
                         }
@@ -308,20 +312,20 @@ fun SearchScreen(
                                 Icon(
                                     imageVector = Icons.Filled.Search,
                                     contentDescription = null,
-                                    tint = OnBackgroundVariant.copy(alpha = 0.4f),
-                                    modifier = Modifier.size(80.dp),
+                                    tint = MFColors.TextTertiary.copy(alpha = 0.4f),
+                                    modifier = Modifier.size(68.dp),
                                 )
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(14.dp))
                                 Text(
                                     text = "Search for songs",
                                     style = MaterialTheme.typography.headlineSmall,
-                                    color = OnBackgroundVariant,
+                                    color = MFColors.TextSecondary,
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = "Find your favorite music",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = OnBackgroundVariant.copy(alpha = 0.6f),
+                                    color = MFColors.TextTertiary,
                                 )
                             }
                         }
@@ -400,21 +404,18 @@ fun SearchScreen(
             }
         }
 
-        // ── Snackbar Host ──────────────────────────────────────────
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter),
         ) { data ->
             Snackbar(
                 snackbarData = data,
-                containerColor = DarkSurfaceVariant,
-                contentColor = OnBackground,
+                containerColor = MFColors.GlassHigh,
+                contentColor = MFColors.TextPrimary,
             )
         }
     }
 }
-
-// ── Search Bar ──────────────────────────────────────────────────────────
 
 @Composable
 private fun SearchBar(
@@ -469,21 +470,18 @@ private fun SearchBar(
             }
         },
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = MFColors.Elevated,
-            unfocusedContainerColor = MFColors.Elevated,
+            focusedContainerColor = Color.Transparent,
+            unfocusedContainerColor = Color.Transparent,
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent,
             focusedTextColor = MFColors.TextPrimary,
             unfocusedTextColor = MFColors.TextPrimary,
             cursorColor = MFColors.Accent,
         ),
-        shape = MFTokens.MediumRadius,
         singleLine = true,
         modifier = modifier,
     )
 }
-
-// ── Search Result Item ──────────────────────────────────────────────────
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -494,62 +492,64 @@ private fun SearchResultItem(
     onAddToPlaylist: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier
-            .clip(MFTokens.MediumRadius)
-            .background(MFColors.Card)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick,
-            )
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    MFGlass.GlassPanel(
+        modifier = modifier,
+        cornerRadius = MFTokens.MediumRadius,
+        alpha = 0.06f,
     ) {
-        SearchResultThumbnail(
-            thumbnailUrl = result.thumbnailUrl,
-            modifier = Modifier.size(56.dp),
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(
-            modifier = Modifier.weight(1f),
+        Row(
+            modifier = Modifier
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                )
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = result.title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MFColors.TextPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            SearchResultThumbnail(
+                thumbnailUrl = result.thumbnailUrl,
+                modifier = Modifier.size(48.dp),
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-            Text(
-                text = result.artist,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MFColors.TextSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+            Column(
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = result.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MFColors.TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
 
-        IconButton(
-            onClick = onAddToPlaylist,
-            modifier = Modifier.size(36.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Filled.QueueMusic,
-                contentDescription = "Add to Playlist",
-                tint = MFColors.TextTertiary,
-                modifier = Modifier.size(20.dp),
-            )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = result.artist,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MFColors.TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            IconButton(
+                onClick = onAddToPlaylist,
+                modifier = Modifier.size(32.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.QueueMusic,
+                    contentDescription = "Add to Playlist",
+                    tint = MFColors.TextTertiary,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
     }
 }
-
-// ── Search Result Thumbnail ─────────────────────────────────────────────
 
 @Composable
 private fun SearchResultThumbnail(
@@ -558,8 +558,9 @@ private fun SearchResultThumbnail(
 ) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(MFColors.Elevated),
+            .clip(RoundedCornerShape(12.dp))
+            .background(MFColors.GlassMid)
+            .border(width = 0.5.dp, color = MFColors.GlassBorder, shape = RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center,
     ) {
         if (thumbnailUrl != null) {
@@ -583,76 +584,77 @@ private fun SearchResultThumbnail(
     }
 }
 
-// ── Artist Result Item ──────────────────────────────────────────────────
-
 @Composable
 private fun ArtistResultItem(
     result: SearchResult,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(DarkSurface)
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    MFGlass.GlassPanel(
+        modifier = modifier,
+        cornerRadius = MFTokens.MediumRadius,
+        alpha = 0.06f,
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(28.dp))
-                .background(OnBackgroundVariant.copy(alpha = 0.2f)),
-            contentAlignment = Alignment.Center,
+                .clickable(onClick = onClick)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (result.thumbnailUrl.isNotBlank()) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(result.thumbnailUrl)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.matchParentSize(),
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(MFColors.GlassMid)
+                    .border(width = 0.5.dp, color = MFColors.GlassBorder, shape = RoundedCornerShape(28.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (result.thumbnailUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(result.thumbnailUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize(),
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.MusicNote,
+                        contentDescription = null,
+                        tint = MFColors.TextTertiary,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = result.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MFColors.TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-            } else {
-                Icon(
-                    imageVector = Icons.Filled.MusicNote,
-                    contentDescription = null,
-                    tint = OnBackgroundVariant,
-                    modifier = Modifier.size(24.dp),
+
+                Spacer(modifier = Modifier.height(3.dp))
+
+                Text(
+                    text = "Artist",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MFColors.TextSecondary,
+                    maxLines = 1,
                 )
             }
         }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(
-            modifier = Modifier.weight(1f),
-        ) {
-            Text(
-                text = result.title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = OnBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "Artist",
-                style = MaterialTheme.typography.bodyMedium,
-                color = OnBackgroundVariant,
-                maxLines = 1,
-            )
-        }
     }
 }
-
-// ── Album Result Item ───────────────────────────────────────────────────
 
 @Composable
 private fun AlbumResultItem(
@@ -660,54 +662,56 @@ private fun AlbumResultItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(DarkSurface)
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    MFGlass.GlassPanel(
+        modifier = modifier,
+        cornerRadius = MFTokens.MediumRadius,
+        alpha = 0.06f,
     ) {
-        SearchResultThumbnail(
-            thumbnailUrl = result.thumbnailUrl,
-            modifier = Modifier.size(56.dp),
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(
-            modifier = Modifier.weight(1f),
+        Row(
+            modifier = Modifier
+                .clickable(onClick = onClick)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = result.title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = OnBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            SearchResultThumbnail(
+                thumbnailUrl = result.thumbnailUrl,
+                modifier = Modifier.size(48.dp),
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = result.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MFColors.TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+
+                Spacer(modifier = Modifier.height(3.dp))
+
+                Text(
+                    text = result.artist,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MFColors.TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
 
             Text(
-                text = result.artist,
-                style = MaterialTheme.typography.bodyMedium,
-                color = OnBackgroundVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                text = "Album",
+                style = MaterialTheme.typography.labelSmall,
+                color = MFColors.TextTertiary,
+                modifier = Modifier.padding(start = 8.dp),
             )
         }
-
-        Text(
-            text = "Album",
-            style = MaterialTheme.typography.labelSmall,
-            color = OnBackgroundVariant,
-            modifier = Modifier.padding(start = 8.dp),
-        )
     }
 }
-
-// ── Playlist Result Item ────────────────────────────────────────────────
 
 @Composable
 private fun PlaylistResultItem(
@@ -715,71 +719,76 @@ private fun PlaylistResultItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(DarkSurface)
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    MFGlass.GlassPanel(
+        modifier = modifier,
+        cornerRadius = MFTokens.MediumRadius,
+        alpha = 0.06f,
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(OnBackgroundVariant.copy(alpha = 0.2f)),
-            contentAlignment = Alignment.Center,
+                .clickable(onClick = onClick)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (result.thumbnailUrl.isNotBlank()) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(result.thumbnailUrl)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.matchParentSize(),
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MFColors.GlassMid)
+                    .border(width = 0.5.dp, color = MFColors.GlassBorder, shape = RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (result.thumbnailUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(result.thumbnailUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize(),
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.QueueMusic,
+                        contentDescription = null,
+                        tint = MFColors.TextTertiary,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = result.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MFColors.TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-            } else {
-                Icon(
-                    imageVector = Icons.Filled.QueueMusic,
-                    contentDescription = null,
-                    tint = OnBackgroundVariant,
-                    modifier = Modifier.size(24.dp),
+
+                Spacer(modifier = Modifier.height(3.dp))
+
+                Text(
+                    text = result.artist,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MFColors.TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(
-            modifier = Modifier.weight(1f),
-        ) {
-            Text(
-                text = result.title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = OnBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = result.artist,
-                style = MaterialTheme.typography.bodyMedium,
-                color = OnBackgroundVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                text = "Playlist",
+                style = MaterialTheme.typography.labelSmall,
+                color = MFColors.TextTertiary,
+                modifier = Modifier.padding(start = 6.dp),
             )
         }
-
-        Text(
-            text = "Playlist",
-            style = MaterialTheme.typography.labelSmall,
-            color = OnBackgroundVariant,
-            modifier = Modifier.padding(start = 8.dp),
-        )
     }
 }

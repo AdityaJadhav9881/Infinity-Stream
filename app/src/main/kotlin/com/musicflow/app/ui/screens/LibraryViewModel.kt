@@ -52,7 +52,7 @@ class LibraryViewModel @Inject constructor(
                     }
                     state.copy(
                         allItems = items,
-                        items = applyFilteredList(items, state.searchQuery, state.selectedFilter),
+                        items = applyFilteredList(items, state.searchQuery, state.selectedFilter, state.offlineTracks),
                         isLoading = false,
                     )
                 }
@@ -68,7 +68,7 @@ class LibraryViewModel @Inject constructor(
                     }
                     state.copy(
                         allItems = items,
-                        items = applyFilteredList(items, state.searchQuery, state.selectedFilter),
+                        items = applyFilteredList(items, state.searchQuery, state.selectedFilter, state.offlineTracks),
                     )
                 }
             }
@@ -99,7 +99,7 @@ class LibraryViewModel @Inject constructor(
         _uiState.update { state ->
             state.copy(
                 searchQuery = query,
-                items = applyFilteredList(state.allItems, query, state.selectedFilter),
+                items = applyFilteredList(state.allItems, query, state.selectedFilter, state.offlineTracks),
             )
         }
     }
@@ -108,7 +108,7 @@ class LibraryViewModel @Inject constructor(
         _uiState.update { state ->
             state.copy(
                 selectedFilter = filter,
-                items = applyFilteredList(state.allItems, state.searchQuery, filter),
+                items = applyFilteredList(state.allItems, state.searchQuery, filter, state.offlineTracks),
             )
         }
     }
@@ -129,7 +129,8 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch { offlineDownloadManager.clearAllOfflineTracks() }
     }
 
-    private fun applyFilteredList(items: List<LibraryItem>, query: String, filter: LibraryFilter): List<LibraryItem> {
+    private fun applyFilteredList(items: List<LibraryItem>, query: String, filter: LibraryFilter, offlineTracks: List<OfflineTrackEntity> = emptyList()): List<LibraryItem> {
+        val offlineIds = offlineTracks.map { it.songId }.toSet()
         var result = when (filter) {
             LibraryFilter.ALL -> items
             LibraryFilter.FAVORITES -> items.filter { it.isFavorite }
@@ -137,7 +138,7 @@ class LibraryViewModel @Inject constructor(
                 items.filter { it.track.lastPlayedAt > 0 }
                     .sortedByDescending { it.track.lastPlayedAt }
             }
-            LibraryFilter.DOWNLOADS -> items
+            LibraryFilter.DOWNLOADS -> items.filter { it.track.songId in offlineIds }
             LibraryFilter.PLAYLISTS -> items
             LibraryFilter.ALBUMS -> items
             LibraryFilter.ARTISTS -> items

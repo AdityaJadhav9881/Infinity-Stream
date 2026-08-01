@@ -3,6 +3,7 @@ package com.musicflow.app.ui.screens
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -46,13 +48,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.musicflow.app.data.local.LocalBackupManager
-import com.musicflow.app.ui.theme.AccentGreen
-import com.musicflow.app.ui.theme.DarkSurface
-import com.musicflow.app.ui.theme.ErrorRed
 import com.musicflow.app.ui.theme.MFColors
+import com.musicflow.app.ui.theme.MFGlass
 import com.musicflow.app.ui.theme.MFTokens
-import com.musicflow.app.ui.theme.OnBackground
-import com.musicflow.app.ui.theme.OnBackgroundVariant
 import com.musicflow.app.utils.ThemeMode
 import com.musicflow.app.utils.ThemePreferences
 import com.musicflow.app.utils.EqualizerManager
@@ -71,6 +69,7 @@ fun SettingsScreen(
     equalizerManager: EqualizerManager? = null,
     playerSettingsManager: PlayerSettingsManager? = null,
     localBackupManager: LocalBackupManager? = null,
+    onCheckForUpdate: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -101,8 +100,10 @@ fun SettingsScreen(
     ) {
         Text(
             text = "Settings",
-            style = MaterialTheme.typography.headlineMedium,
+            fontSize = 32.sp,
+            fontWeight = FontWeight.ExtraBold,
             color = MFColors.TextPrimary,
+            letterSpacing = (-0.8).sp,
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -111,9 +112,10 @@ fun SettingsScreen(
         SectionHeader(title = "Appearance")
         Spacer(modifier = Modifier.height(8.dp))
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        MFGlass.GlassPanel(
             modifier = Modifier.fillMaxWidth(),
+            cornerRadius = MFTokens.MediumRadius,
+            alpha = 0.08f,
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 ThemeMode.values().forEach { mode ->
@@ -121,7 +123,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(12.dp))
                             .clickable {
                                 themePreferences?.let { prefs ->
                                     coroutineScope.launch {
@@ -129,26 +131,26 @@ fun SettingsScreen(
                                     }
                                 }
                             }
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = 10.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Palette,
                             contentDescription = null,
-                            tint = if (themeMode == mode) AccentGreen else OnBackgroundVariant,
+                            tint = if (themeMode == mode) MFColors.Accent else MFColors.TextTertiary,
                             modifier = Modifier.size(20.dp),
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = mode.label,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
+                            color = MFColors.TextPrimary,
                             modifier = Modifier.weight(1f),
                         )
                         if (themeMode == mode) {
                             Icon(
                                 imageVector = Icons.Filled.CheckCircle,
                                 contentDescription = "Selected",
-                                tint = AccentGreen,
+                                tint = MFColors.Accent,
                                 modifier = Modifier.size(20.dp),
                             )
                         }
@@ -163,19 +165,19 @@ fun SettingsScreen(
         SectionHeader(title = "Search Language")
         Spacer(modifier = Modifier.height(8.dp))
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        MFGlass.GlassPanel(
             modifier = Modifier.fillMaxWidth(),
+            cornerRadius = MFTokens.MediumRadius,
+            alpha = 0.08f,
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                // Show selected languages summary + expand arrow
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .clickable { showLanguageDropdown = !showLanguageDropdown }
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 10.dp),
                 ) {
                     Text(
                         text = if (selectedLanguages.size == 1) {
@@ -184,28 +186,27 @@ fun SettingsScreen(
                             "${selectedLanguages.size} languages selected"
                         },
                         style = MaterialTheme.typography.bodyMedium,
-                        color = AccentGreen,
+                        color = MFColors.Accent,
                         modifier = Modifier.weight(1f),
                     )
                     Icon(
                         imageVector = if (showLanguageDropdown) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                         contentDescription = "Toggle",
-                        tint = OnBackgroundVariant,
-                        modifier = Modifier.size(20.dp),
+                        tint = MFColors.TextTertiary,
+                        modifier = Modifier.size(18.dp),
                     )
                 }
 
-                // Expandable language list
                 AnimatedVisibility(visible = showLanguageDropdown) {
                     Column {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         SearchLanguage.values().forEach { language ->
                             val isSelected = language in selectedLanguages
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(RoundedCornerShape(10.dp))
                                     .clickable {
                                         coroutineScope.launch {
                                             val prefs = languagePreferences ?: return@launch
@@ -223,15 +224,15 @@ fun SettingsScreen(
                                 Text(
                                     text = language.label,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = if (isSelected) AccentGreen else MaterialTheme.colorScheme.onBackground,
+                                    color = if (isSelected) MFColors.Accent else MFColors.TextPrimary,
                                     modifier = Modifier.weight(1f),
                                 )
                                 if (isSelected) {
                                     Icon(
                                         imageVector = Icons.Filled.CheckCircle,
                                         contentDescription = "Selected",
-                                        tint = AccentGreen,
-                                        modifier = Modifier.size(20.dp),
+                                        tint = MFColors.Accent,
+                                        modifier = Modifier.size(18.dp),
                                     )
                                 }
                             }
@@ -247,60 +248,61 @@ fun SettingsScreen(
         SectionHeader(title = "Player & Audio")
         Spacer(modifier = Modifier.height(8.dp))
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        MFGlass.GlassPanel(
             modifier = Modifier.fillMaxWidth(),
+            cornerRadius = MFTokens.MediumRadius,
+            alpha = 0.08f,
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(14.dp))
                         .clickable {
                             coroutineScope.launch {
                                 playerSettingsManager?.setSkipSilence(!skipSilence)
                             }
                         }
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 10.dp),
                 ) {
                     Text(
                         text = "Skip Silence",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground,
+                        color = MFColors.TextPrimary,
                         modifier = Modifier.weight(1f),
                     )
                     Text(
                         text = if (skipSilence) "ON" else "OFF",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (skipSilence) AccentGreen else OnBackgroundVariant,
+                        color = if (skipSilence) MFColors.Accent else MFColors.TextTertiary,
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .clickable {
                             coroutineScope.launch {
                                 playerSettingsManager?.setVolumeNormalization(!volumeNormalization)
                             }
                         }
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 10.dp),
                 ) {
                     Text(
                         text = "Volume Normalization",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground,
+                        color = MFColors.TextPrimary,
                         modifier = Modifier.weight(1f),
                     )
                     Text(
                         text = if (volumeNormalization) "ON" else "OFF",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (volumeNormalization) AccentGreen else OnBackgroundVariant,
+                        color = if (volumeNormalization) MFColors.Accent else MFColors.TextTertiary,
                     )
                 }
             }
@@ -312,12 +314,13 @@ fun SettingsScreen(
         SectionHeader(title = "Equalizer")
         Spacer(modifier = Modifier.height(8.dp))
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        MFGlass.GlassPanel(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
+                .clip(MFTokens.MediumRadius)
                 .clickable { showEqualizerDropdown = !showEqualizerDropdown },
+            cornerRadius = MFTokens.MediumRadius,
+            alpha = 0.08f,
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -327,13 +330,13 @@ fun SettingsScreen(
                     Text(
                         text = "Current: ${currentPreset.label}",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground,
+                        color = MFColors.TextPrimary,
                         modifier = Modifier.weight(1f),
                     )
                     Icon(
                         imageVector = if (showEqualizerDropdown) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                         contentDescription = if (showEqualizerDropdown) "Collapse" else "Expand",
-                        tint = OnBackgroundVariant,
+                        tint = MFColors.TextTertiary,
                     )
                 }
 
@@ -345,27 +348,27 @@ fun SettingsScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(RoundedCornerShape(14.dp))
                                     .clickable {
                                         equalizerManager?.applyPreset(preset)
                                         coroutineScope.launch {
                                             playerSettingsManager?.setEqualizerPreset(preset.name)
                                         }
                                     }
-                                    .padding(vertical = 8.dp),
+                                    .padding(vertical = 10.dp),
                             ) {
                                 Text(
                                     text = preset.label,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = if (currentPreset == preset) AccentGreen else MaterialTheme.colorScheme.onBackground,
+                                    color = if (currentPreset == preset) MFColors.Accent else MFColors.TextPrimary,
                                     modifier = Modifier.weight(1f),
                                 )
                                 if (currentPreset == preset) {
                                     Icon(
                                         imageVector = Icons.Filled.CheckCircle,
                                         contentDescription = "Selected",
-                                        tint = AccentGreen,
-                                        modifier = Modifier.size(20.dp),
+                                        tint = MFColors.Accent,
+                                        modifier = Modifier.size(18.dp),
                                     )
                                 }
                             }
@@ -381,9 +384,10 @@ fun SettingsScreen(
         SectionHeader(title = "Engine")
         Spacer(modifier = Modifier.height(8.dp))
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        MFGlass.GlassPanel(
             modifier = Modifier.fillMaxWidth(),
+            cornerRadius = MFTokens.MediumRadius,
+            alpha = 0.08f,
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -393,20 +397,20 @@ fun SettingsScreen(
                     Icon(
                         imageVector = Icons.Filled.Engineering,
                         contentDescription = null,
-                        tint = AccentGreen,
-                        modifier = Modifier.size(24.dp),
+                        tint = MFColors.Accent,
+                        modifier = Modifier.size(22.dp),
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "yt-dlp Version",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
+                            color = MFColors.TextPrimary,
                         )
                         Text(
                             text = engineVersion,
                             style = MaterialTheme.typography.bodySmall,
-                            color = OnBackgroundVariant,
+                            color = MFColors.TextTertiary,
                         )
                     }
                 }
@@ -430,23 +434,23 @@ fun SettingsScreen(
                         },
                         contentDescription = null,
                         tint = when {
-                            isError -> ErrorRed
-                            isUpToDate -> AccentGreen
-                            else -> OnBackgroundVariant
+                            isError -> MFColors.Error
+                            isUpToDate -> MFColors.Accent
+                            else -> MFColors.TextTertiary
                         },
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(22.dp),
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Update Status",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
+                            color = MFColors.TextPrimary,
                         )
                         Text(
                             text = updateStatus,
                             style = MaterialTheme.typography.bodySmall,
-                            color = OnBackgroundVariant,
+                            color = MFColors.TextTertiary,
                         )
                     }
                 }
@@ -455,28 +459,73 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        // ── App Update Section ──────────────────────────────────
+        if (onCheckForUpdate != null) {
+            SectionHeader(title = "App Update")
+            Spacer(modifier = Modifier.height(8.dp))
+
+            MFGlass.GlassPanel(
+                modifier = Modifier.fillMaxWidth(),
+                cornerRadius = MFTokens.MediumRadius,
+                alpha = 0.08f,
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onCheckForUpdate() }
+                            .padding(vertical = 10.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.SystemUpdate,
+                            contentDescription = null,
+                            tint = MFColors.Accent,
+                            modifier = Modifier.size(22.dp),
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Check for Updates",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MFColors.TextPrimary,
+                            )
+                            Text(
+                                text = "Tap to check for a new version",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MFColors.TextTertiary,
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
         // ── Backup & Restore Section ─────────────────────────────
         SectionHeader(title = "Backup & Restore")
         Spacer(modifier = Modifier.height(8.dp))
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        MFGlass.GlassPanel(
             modifier = Modifier.fillMaxWidth(),
+            cornerRadius = MFTokens.MediumRadius,
+            alpha = 0.08f,
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
                     text = "Backup saves playlists, favorites, and library to /sdcard/Music/MusicFlow/backups/.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = OnBackgroundVariant,
+                    color = MFColors.TextTertiary,
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Backup button
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .clickable {
                             coroutineScope.launch {
                                 val success = localBackupManager?.backup()
@@ -489,26 +538,25 @@ fun SettingsScreen(
                     Icon(
                         imageVector = Icons.Filled.Backup,
                         contentDescription = null,
-                        tint = AccentGreen,
-                        modifier = Modifier.size(22.dp),
+                        tint = MFColors.Accent,
+                        modifier = Modifier.size(20.dp),
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = "Backup Now",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground,
+                        color = MFColors.TextPrimary,
                         modifier = Modifier.weight(1f),
                     )
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Restore button
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .clickable {
                             val hasBackup = localBackupManager?.hasBackup() == true
                             if (!hasBackup) {
@@ -519,14 +567,12 @@ fun SettingsScreen(
                                 val success = localBackupManager?.restore()
                                 if (success == true) {
                                     Toast.makeText(context, "Restored! Restarting...", Toast.LENGTH_SHORT).show()
-                                    // Restart the app to reconnect Room to the restored database
                                     val pm = context.packageManager
                                     val intent = pm.getLaunchIntentForPackage(context.packageName)
                                     if (intent != null) {
                                         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                                         context.startActivity(intent)
                                     }
-                                    Runtime.getRuntime().exit(0)
                                 } else {
                                     Toast.makeText(context, "Restore failed", Toast.LENGTH_SHORT).show()
                                 }
@@ -537,30 +583,30 @@ fun SettingsScreen(
                     Icon(
                         imageVector = Icons.Filled.Restore,
                         contentDescription = null,
-                        tint = AccentGreen,
-                        modifier = Modifier.size(22.dp),
+                        tint = MFColors.Accent,
+                        modifier = Modifier.size(20.dp),
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Restore from Backup",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
+                            color = MFColors.TextPrimary,
                         )
                         Text(
                             text = "Requires app restart after restoring",
                             style = MaterialTheme.typography.bodySmall,
-                            color = OnBackgroundVariant.copy(alpha = 0.7f),
+                            color = MFColors.TextTertiary,
                         )
                     }
                 }
 
                 if (localBackupManager?.hasBackup() == true) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = "Backup exists at /sdcard/Music/MusicFlow/backups/musicflow.db",
                         style = MaterialTheme.typography.bodySmall,
-                        color = AccentGreen.copy(alpha = 0.7f),
+                        color = MFColors.Accent.copy(alpha = 0.7f),
                     )
                 }
             }
@@ -572,27 +618,28 @@ fun SettingsScreen(
         SectionHeader(title = "About")
         Spacer(modifier = Modifier.height(8.dp))
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        MFGlass.GlassPanel(
             modifier = Modifier.fillMaxWidth(),
+            cornerRadius = MFTokens.MediumRadius,
+            alpha = 0.08f,
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
                     text = "MusicFlow",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
+                    color = MFColors.TextPrimary,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Ad-free YouTube Music streaming",
                     style = MaterialTheme.typography.bodySmall,
-                    color = OnBackgroundVariant,
+                    color = MFColors.TextTertiary,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Version 2.0.0",
                     style = MaterialTheme.typography.bodySmall,
-                    color = OnBackgroundVariant.copy(alpha = 0.6f),
+                    color = MFColors.TextTertiary.copy(alpha = 0.6f),
                 )
             }
         }
@@ -607,6 +654,6 @@ private fun SectionHeader(title: String) {
         fontWeight = FontWeight.Bold,
         color = MFColors.TextSecondary,
         letterSpacing = 0.5.sp,
-        modifier = Modifier.padding(bottom = 8.dp),
+        modifier = Modifier.padding(bottom = 10.dp),
     )
 }

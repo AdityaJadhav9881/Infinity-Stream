@@ -3,10 +3,8 @@ package com.musicflow.app.ui.components
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -28,7 +26,6 @@ import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -37,16 +34,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.musicflow.app.data.TrackMetadata
@@ -54,16 +48,6 @@ import com.musicflow.app.ui.theme.MFColors
 import com.musicflow.app.ui.theme.MFGlass
 import com.musicflow.app.ui.theme.MFTokens
 
-/**
- * Premium Mini Player — Floating glass card with luxurious spacing.
- *
- * Design principles:
- * - Generous whitespace between all elements
- * - Artwork and waveform grouped on left
- * - Play button floats near right edge with room to breathe
- * - Every element has space to exist
- * - Feels calm, not compressed
- */
 @Composable
 fun MiniPlayer(
     track: TrackMetadata?,
@@ -76,25 +60,22 @@ fun MiniPlayer(
 ) {
     if (track == null) return
 
-    // Waveform animation
-    val infiniteTransition = rememberInfiniteTransition(label = "waveform")
-    val bar1 by infiniteTransition.animateFloat(
-        initialValue = 0.3f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+    val bar1 by animateFloatAsState(
+        targetValue = if (isPlaying) 1f else 0.3f,
+        animationSpec = if (isPlaying) infiniteRepeatable(tween(400, easing = FastOutSlowInEasing), RepeatMode.Reverse) else tween(300),
         label = "bar1",
     )
-    val bar2 by infiniteTransition.animateFloat(
-        initialValue = 0.6f, targetValue = 0.2f,
-        animationSpec = infiniteRepeatable(tween(350, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+    val bar2 by animateFloatAsState(
+        targetValue = if (isPlaying) 0.2f else 0.6f,
+        animationSpec = if (isPlaying) infiniteRepeatable(tween(350, easing = FastOutSlowInEasing), RepeatMode.Reverse) else tween(300),
         label = "bar2",
     )
-    val bar3 by infiniteTransition.animateFloat(
-        initialValue = 0.4f, targetValue = 0.9f,
-        animationSpec = infiniteRepeatable(tween(500, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+    val bar3 by animateFloatAsState(
+        targetValue = if (isPlaying) 0.9f else 0.4f,
+        animationSpec = if (isPlaying) infiniteRepeatable(tween(500, easing = FastOutSlowInEasing), RepeatMode.Reverse) else tween(300),
         label = "bar3",
     )
 
-    // Play button scale animation
     val playScale by animateFloatAsState(
         targetValue = 1f,
         animationSpec = spring(
@@ -107,10 +88,9 @@ fun MiniPlayer(
     MFGlass.MiniPlayerGlass(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 6.dp)
+            .padding(horizontal = 16.dp, vertical = 7.dp)
             .clickable(onClick = onClick),
     ) {
-        // Progress bar at top
         LinearProgressIndicator(
             progress = { progress.coerceIn(0f, 1f) },
             color = MFColors.Accent,
@@ -127,7 +107,6 @@ fun MiniPlayer(
                 .padding(start = 16.dp, end = 20.dp, top = 14.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Album Art with glow
             Box(contentAlignment = Alignment.Center) {
                 if (isPlaying) {
                     Box(
@@ -140,36 +119,34 @@ fun MiniPlayer(
                 MiniAlbumArt(
                     artworkUrl = track.artworkUrl,
                     isPlaying = isPlaying,
-                    modifier = Modifier.size(50.dp),
+                    modifier = Modifier.size(48.dp),
                 )
             }
 
-            // Waveform (close to artwork)
             if (isPlaying) {
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 Row(
                     modifier = Modifier
-                        .width(20.dp)
-                        .height(28.dp)
+                        .width(18.dp)
+                        .height(24.dp)
                         .clip(RoundedCornerShape(5.dp))
                         .background(MFColors.Accent.copy(alpha = 0.10f))
-                        .padding(horizontal = 4.dp, vertical = 5.dp),
-                    horizontalArrangement = Arrangement.spacedBy(2.5.dp),
+                        .padding(horizontal = 3.dp, vertical = 5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalAlignment = Alignment.Bottom,
                 ) {
-                    Box(Modifier.weight(1f).fillMaxWidth().height((bar1 * 14).dp.coerceAtMost(14.dp)).clip(RoundedCornerShape(1.5.dp)).background(MFColors.Accent))
-                    Box(Modifier.weight(1f).fillMaxWidth().height((bar2 * 14).dp.coerceAtMost(14.dp)).clip(RoundedCornerShape(1.5.dp)).background(MFColors.Accent))
-                    Box(Modifier.weight(1f).fillMaxWidth().height((bar3 * 14).dp.coerceAtMost(14.dp)).clip(RoundedCornerShape(1.5.dp)).background(MFColors.Accent))
+                    Box(Modifier.weight(1f).fillMaxWidth().height((bar1 * 12).dp.coerceAtMost(12.dp)).clip(RoundedCornerShape(1.5.dp)).background(MFColors.Accent))
+                    Box(Modifier.weight(1f).fillMaxWidth().height((bar2 * 12).dp.coerceAtMost(12.dp)).clip(RoundedCornerShape(1.5.dp)).background(MFColors.Accent))
+                    Box(Modifier.weight(1f).fillMaxWidth().height((bar3 * 12).dp.coerceAtMost(12.dp)).clip(RoundedCornerShape(1.5.dp)).background(MFColors.Accent))
                 }
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
-            // Track Info — fills available space
             Box(modifier = Modifier.weight(1f)) {
                 Text(
                     text = track.title.ifBlank { "Unknown Title" },
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MFColors.TextPrimary,
                     maxLines = 1,
@@ -181,22 +158,20 @@ fun MiniPlayer(
                     color = MFColors.TextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 20.dp),
+                    modifier = Modifier.padding(top = 18.dp),
                 )
             }
 
             Spacer(modifier = Modifier.width(20.dp))
 
-            // Play/Pause — floats near right edge
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .scale(playScale)
+                    .size(46.dp)
                     .shadow(
                         elevation = MFTokens.ElevationLow,
                         shape = CircleShape,
-                        ambientColor = MFColors.Accent.copy(alpha = 0.25f),
-                        spotColor = MFColors.Accent.copy(alpha = 0.15f),
+                        ambientColor = MFColors.Accent.copy(alpha = 0.30f),
+                        spotColor = MFColors.Accent.copy(alpha = 0.20f),
                     )
                     .clip(CircleShape)
                     .background(MFColors.Accent)
@@ -207,7 +182,7 @@ fun MiniPlayer(
                     imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
                     tint = MFColors.TextOnAccent,
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(22.dp),
                 )
             }
         }
@@ -223,10 +198,10 @@ private fun MiniAlbumArt(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(MFColors.Elevated)
+            .background(MFColors.GlassMid)
             .border(
-                width = if (isPlaying) 1.5.dp else 0.dp,
-                color = if (isPlaying) MFColors.Accent.copy(alpha = 0.25f) else Color.Transparent,
+                width = if (isPlaying) 1.dp else 0.dp,
+                color = if (isPlaying) MFColors.Accent.copy(alpha = 0.30f) else Color.Transparent,
                 shape = RoundedCornerShape(14.dp),
             ),
         contentAlignment = Alignment.Center,

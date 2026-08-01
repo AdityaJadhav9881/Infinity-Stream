@@ -26,6 +26,12 @@ android {
         ndk {
             abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
         }
+
+        buildConfigField(
+            "String",
+            "API_KEY",
+            "\"im_sk_f1ffee81479b9f6f2fd181df1fcc5719cd1c1f83\""
+        )
     }
 
     buildTypes {
@@ -49,6 +55,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {

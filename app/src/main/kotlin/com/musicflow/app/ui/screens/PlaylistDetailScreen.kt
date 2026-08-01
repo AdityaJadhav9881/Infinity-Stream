@@ -59,12 +59,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.musicflow.app.data.local.entity.TrackEntity
-import com.musicflow.app.ui.theme.AccentGreen
-import com.musicflow.app.ui.theme.DarkSurface
-import com.musicflow.app.ui.theme.DarkSurfaceVariant
-import com.musicflow.app.ui.theme.ErrorRed
-import com.musicflow.app.ui.theme.OnBackground
-import com.musicflow.app.ui.theme.OnBackgroundVariant
+import com.musicflow.app.ui.theme.MFColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -109,7 +104,7 @@ fun PlaylistDetailScreen(
                 Text(
                     text = playlistName,
                     style = MaterialTheme.typography.headlineSmall,
-                    color = OnBackground,
+                    color = MFColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -119,7 +114,7 @@ fun PlaylistDetailScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = OnBackground,
+                        tint = MFColors.TextPrimary,
                     )
                 }
             },
@@ -131,7 +126,7 @@ fun PlaylistDetailScreen(
                     Icon(
                         imageVector = Icons.Filled.Edit,
                         contentDescription = "Rename",
-                        tint = OnBackgroundVariant,
+                        tint = MFColors.TextSecondary,
                         modifier = Modifier.size(22.dp),
                     )
                 }
@@ -139,7 +134,7 @@ fun PlaylistDetailScreen(
                     Icon(
                         imageVector = Icons.Filled.ContentCopy,
                         contentDescription = "Duplicate",
-                        tint = OnBackgroundVariant,
+                        tint = MFColors.TextSecondary,
                         modifier = Modifier.size(22.dp),
                     )
                 }
@@ -160,7 +155,7 @@ fun PlaylistDetailScreen(
                     Icon(
                         imageVector = Icons.Filled.Share,
                         contentDescription = "Share",
-                        tint = OnBackgroundVariant,
+                        tint = MFColors.TextSecondary,
                         modifier = Modifier.size(22.dp),
                     )
                 }
@@ -168,7 +163,7 @@ fun PlaylistDetailScreen(
                     Icon(
                         imageVector = Icons.Filled.Delete,
                         contentDescription = "Delete",
-                        tint = ErrorRed,
+                        tint = MFColors.Error,
                         modifier = Modifier.size(22.dp),
                     )
                 }
@@ -197,7 +192,7 @@ fun PlaylistDetailScreen(
         Text(
             text = "${tracks.size} tracks",
             style = MaterialTheme.typography.bodySmall,
-            color = OnBackgroundVariant,
+            color = MFColors.TextSecondary,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
         )
 
@@ -206,7 +201,7 @@ fun PlaylistDetailScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator(color = AccentGreen, strokeWidth = 2.dp)
+                CircularProgressIndicator(color = MFColors.Accent, strokeWidth = 2.dp)
             }
         } else if (tracks.isEmpty()) {
             Box(
@@ -217,20 +212,20 @@ fun PlaylistDetailScreen(
                     Icon(
                         imageVector = Icons.Filled.LibraryMusic,
                         contentDescription = null,
-                        tint = OnBackgroundVariant.copy(alpha = 0.4f),
+                        tint = MFColors.TextSecondary.copy(alpha = 0.4f),
                         modifier = Modifier.size(80.dp),
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "No tracks yet",
                         style = MaterialTheme.typography.headlineSmall,
-                        color = OnBackgroundVariant,
+                        color = MFColors.TextSecondary,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Add songs from the library",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = OnBackgroundVariant.copy(alpha = 0.6f),
+                        color = MFColors.TextSecondary.copy(alpha = 0.6f),
                     )
                 }
             }
@@ -250,7 +245,7 @@ fun PlaylistDetailScreen(
                     },
                     shape = RoundedCornerShape(25.dp),
                     colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = AccentGreen
+                        containerColor = MFColors.Accent
                     ),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
                         horizontal = 24.dp, vertical = 10.dp
@@ -291,21 +286,21 @@ fun PlaylistDetailScreen(
     if (showRenameDialog) {
         AlertDialog(
             onDismissRequest = { showRenameDialog = false },
-            containerColor = DarkSurface,
-            title = { Text("Rename Playlist", color = OnBackground) },
+            containerColor = MFColors.GlassLow,
+            title = { Text("Rename Playlist", color = MFColors.TextPrimary) },
             text = {
                 TextField(
                     value = newName,
                     onValueChange = { newName = it },
-                    placeholder = { Text("Playlist name", color = OnBackgroundVariant) },
+                    placeholder = { Text("Playlist name", color = MFColors.TextSecondary) },
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
-                        focusedTextColor = OnBackground,
-                        unfocusedTextColor = OnBackground,
-                        cursorColor = AccentGreen,
-                        focusedIndicatorColor = AccentGreen,
-                        unfocusedIndicatorColor = OnBackgroundVariant,
+                        focusedTextColor = MFColors.TextPrimary,
+                        unfocusedTextColor = MFColors.TextPrimary,
+                        cursorColor = MFColors.Accent,
+                        focusedIndicatorColor = MFColors.Accent,
+                        unfocusedIndicatorColor = MFColors.TextSecondary,
                     ),
                     singleLine = true,
                 )
@@ -319,12 +314,12 @@ fun PlaylistDetailScreen(
                     },
                     enabled = newName.isNotBlank() && newName != playlistName,
                 ) {
-                    Text("Rename", color = if (newName.isNotBlank() && newName != playlistName) AccentGreen else OnBackgroundVariant)
+                    Text("Rename", color = if (newName.isNotBlank() && newName != playlistName) MFColors.Accent else MFColors.TextSecondary)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showRenameDialog = false }) {
-                    Text("Cancel", color = OnBackgroundVariant)
+                    Text("Cancel", color = MFColors.TextSecondary)
                 }
             },
         )
@@ -334,12 +329,12 @@ fun PlaylistDetailScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            containerColor = DarkSurface,
-            title = { Text("Delete Playlist?", color = OnBackground) },
+            containerColor = MFColors.GlassLow,
+            title = { Text("Delete Playlist?", color = MFColors.TextPrimary) },
             text = {
                 Text(
                     "Are you sure you want to delete \"$playlistName\"? This action cannot be undone.",
-                    color = OnBackgroundVariant,
+                    color = MFColors.TextSecondary,
                 )
             },
             confirmButton = {
@@ -348,12 +343,12 @@ fun PlaylistDetailScreen(
                     showDeleteDialog = false
                     onBack()
                 }) {
-                    Text("Delete", color = ErrorRed)
+                    Text("Delete", color = MFColors.Error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel", color = OnBackgroundVariant)
+                    Text("Cancel", color = MFColors.TextSecondary)
                 }
             },
         )
@@ -363,12 +358,12 @@ fun PlaylistDetailScreen(
     if (showDuplicateDialog) {
         AlertDialog(
             onDismissRequest = { showDuplicateDialog = false },
-            containerColor = DarkSurface,
-            title = { Text("Duplicate Playlist?", color = OnBackground) },
+            containerColor = MFColors.GlassLow,
+            title = { Text("Duplicate Playlist?", color = MFColors.TextPrimary) },
             text = {
                 Text(
                     "Create a copy of \"$playlistName\" with all ${tracks.size} tracks?",
-                    color = OnBackgroundVariant,
+                    color = MFColors.TextSecondary,
                 )
             },
             confirmButton = {
@@ -377,12 +372,12 @@ fun PlaylistDetailScreen(
                     showDuplicateDialog = false
                     Toast.makeText(context, "Playlist duplicated", Toast.LENGTH_SHORT).show()
                 }) {
-                    Text("Duplicate", color = AccentGreen)
+                    Text("Duplicate", color = MFColors.Accent)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDuplicateDialog = false }) {
-                    Text("Cancel", color = OnBackgroundVariant)
+                    Text("Cancel", color = MFColors.TextSecondary)
                 }
             },
         )
@@ -396,12 +391,12 @@ private fun StatItem(label: String, value: String) {
             text = value,
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            color = AccentGreen,
+            color = MFColors.Accent,
         )
         Text(
             text = label,
             fontSize = 12.sp,
-            color = OnBackgroundVariant,
+            color = MFColors.TextSecondary,
         )
     }
 }
@@ -425,7 +420,7 @@ private fun PlaylistTrackItem(
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(DarkSurface)
+            .background(MFColors.GlassLow)
             .clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -434,7 +429,7 @@ private fun PlaylistTrackItem(
             text = "$index",
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
-            color = OnBackgroundVariant,
+            color = MFColors.TextSecondary,
             modifier = Modifier.width(28.dp),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
@@ -443,7 +438,7 @@ private fun PlaylistTrackItem(
             modifier = Modifier
                 .size(48.dp)
                 .clip(RoundedCornerShape(6.dp))
-                .background(OnBackgroundVariant.copy(alpha = 0.2f)),
+                .background(MFColors.TextSecondary.copy(alpha = 0.2f)),
             contentAlignment = Alignment.Center,
         ) {
             if (track.artworkUrl.isNotBlank()) {
@@ -460,7 +455,7 @@ private fun PlaylistTrackItem(
                 Icon(
                     imageVector = Icons.Filled.MusicNote,
                     contentDescription = null,
-                    tint = OnBackgroundVariant,
+                    tint = MFColors.TextSecondary,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -473,7 +468,7 @@ private fun PlaylistTrackItem(
                 text = track.title,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = OnBackground,
+                color = MFColors.TextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -481,7 +476,7 @@ private fun PlaylistTrackItem(
             Text(
                 text = track.artist,
                 style = MaterialTheme.typography.bodyMedium,
-                color = OnBackgroundVariant,
+                color = MFColors.TextSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -491,7 +486,7 @@ private fun PlaylistTrackItem(
             Icon(
                 imageVector = Icons.Filled.Delete,
                 contentDescription = "Remove from playlist",
-                tint = ErrorRed,
+                tint = MFColors.Error,
                 modifier = Modifier.size(22.dp),
             )
         }

@@ -1,5 +1,6 @@
 package com.musicflow.app.ui.screens
 
+import com.musicflow.app.ui.util.formatFileSize
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
@@ -11,6 +12,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -81,15 +83,9 @@ import coil.request.ImageRequest
 import com.musicflow.app.data.local.entity.OfflineTrackEntity
 import com.musicflow.app.data.local.entity.PlaylistEntity
 import com.musicflow.app.data.local.entity.TrackEntity
-import com.musicflow.app.ui.theme.AccentGreen
-import com.musicflow.app.ui.theme.AccentGreenLight
-import com.musicflow.app.ui.theme.DarkSurface
-import com.musicflow.app.ui.theme.DarkSurfaceVariant
-import com.musicflow.app.ui.theme.ErrorRed
 import com.musicflow.app.ui.theme.MFColors
+import com.musicflow.app.ui.theme.MFGlass
 import com.musicflow.app.ui.theme.MFTokens
-import com.musicflow.app.ui.theme.OnBackground
-import com.musicflow.app.ui.theme.OnBackgroundVariant
 
 // ── Main Screen ──────────────────────────────────────────────────────────
 
@@ -112,9 +108,8 @@ fun LibraryScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize().background(MFColors.Background),
-        contentPadding = PaddingValues(bottom = 100.dp),
+        contentPadding = PaddingValues(bottom = 120.dp),
     ) {
-        // ── Header ────────────────────────────────────────────────
         item(key = "header") {
             Column(modifier = Modifier.padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 16.dp)) {
                 Row(
@@ -124,10 +119,10 @@ fun LibraryScreen(
                 ) {
                     Text(
                         text = "Your Library",
-                        fontSize = 30.sp,
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = MFColors.TextPrimary,
-                        letterSpacing = (-0.5).sp,
+                        letterSpacing = (-0.8).sp,
                     )
                     Row {
                         Box {
@@ -175,35 +170,40 @@ fun LibraryScreen(
             }
         }
 
-        // ── Search Bar ────────────────────────────────────────────
         item(key = "search") {
-            TextField(
-                value = uiState.searchQuery,
-                onValueChange = onSearchQueryChange,
-                placeholder = { Text("Search your library...", color = MFColors.TextTertiary) },
-                leadingIcon = {
-                    Icon(imageVector = Icons.Filled.Search, contentDescription = null, tint = MFColors.TextTertiary, modifier = Modifier.size(20.dp))
-                },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MFColors.Elevated,
-                    unfocusedContainerColor = MFColors.Elevated,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = MFColors.TextPrimary,
-                    unfocusedTextColor = MFColors.TextPrimary,
-                    cursorColor = MFColors.Accent,
-                ),
-                shape = MFTokens.MediumRadius,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = MFTokens.ScreenHorizontalPadding),
-            )
+            MFGlass.GlassPanel(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = MFTokens.ScreenHorizontalPadding),
+                cornerRadius = MFTokens.MediumRadius,
+                alpha = 0.08f,
+            ) {
+                TextField(
+                    value = uiState.searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    placeholder = { Text("Search your library...", color = MFColors.TextTertiary) },
+                    leadingIcon = {
+                        Icon(imageVector = Icons.Filled.Search, contentDescription = null, tint = MFColors.TextTertiary, modifier = Modifier.size(20.dp))
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        focusedTextColor = MFColors.TextPrimary,
+                        unfocusedTextColor = MFColors.TextPrimary,
+                        cursorColor = MFColors.Accent,
+                    ),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
 
-        // ── Filter Chips ──────────────────────────────────────────
         item(key = "filters") {
             LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(horizontal = 22.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(LibraryFilter.entries.filter { it != LibraryFilter.TITLE_ASC && it != LibraryFilter.ARTIST_ASC }) { filter ->
                     val isSelected = uiState.selectedFilter == filter
@@ -220,12 +220,12 @@ fun LibraryScreen(
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MFColors.Accent,
                             selectedLabelColor = MFColors.TextOnAccent,
-                            containerColor = MFColors.Elevated,
+                            containerColor = MFColors.GlassMid,
                             labelColor = MFColors.TextSecondary,
                         ),
                         shape = RoundedCornerShape(100.dp),
                         border = FilterChipDefaults.filterChipBorder(
-                            borderColor = MFColors.Divider,
+                            borderColor = MFColors.GlassBorder,
                             selectedBorderColor = MFColors.Accent.copy(alpha = 0.3f),
                             enabled = true,
                             selected = isSelected,
@@ -235,10 +235,8 @@ fun LibraryScreen(
             }
         }
 
-        // ── Filter-Specific Content ───────────────────────────────
         when (uiState.selectedFilter) {
             LibraryFilter.ALL -> {
-                // Continue Listening - show recently played tracks
                 val recentTracks = uiState.items.filter { it.track.lastPlayedAt > 0 }
                     .sortedByDescending { it.track.lastPlayedAt }
                     .take(10)
@@ -248,7 +246,7 @@ fun LibraryScreen(
                     }
                     item(key = "continue_listening") {
                         LazyRow(
-                            contentPadding = PaddingValues(horizontal = 20.dp),
+                            contentPadding = PaddingValues(horizontal = 22.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             itemsIndexed(recentTracks) { index, item ->
@@ -262,13 +260,12 @@ fun LibraryScreen(
                     }
                 }
 
-                // Playlists
                 item(key = "playlists_header") {
                     SectionTitle("Your Playlists")
                 }
                 item(key = "playlists_grid") {
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        contentPadding = PaddingValues(horizontal = 22.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         item {
@@ -289,11 +286,10 @@ fun LibraryScreen(
                     }
                 }
 
-                // Downloads
                 if (uiState.offlineTracks.isNotEmpty()) {
                     item(key = "downloads_header") {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 10.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -324,7 +320,6 @@ fun LibraryScreen(
                     }
                 }
 
-                // Most Played - sort by play count
                 val mostPlayed = uiState.items.filter { it.track.playCount > 0 }
                     .sortedByDescending { it.track.playCount }
                     .take(10)
@@ -340,7 +335,7 @@ fun LibraryScreen(
                             onClick = { onTrackSelected(item.track) },
                             onLongClick = { onTrackLongPress(item.track) },
                             onToggleFavorite = { onToggleFavorite(item.track.songId) },
-                            modifier = Modifier.padding(horizontal = 20.dp),
+                            modifier = Modifier.padding(horizontal = MFTokens.ScreenHorizontalPadding),
                         )
                     }
                 }
@@ -360,9 +355,9 @@ fun LibraryScreen(
                         Text(
                             text = "${uiState.items.size} tracks",
                             fontSize = 14.sp,
-                            color = AccentGreen,
+                            color = MFColors.Accent,
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp),
                         )
                     }
                     itemsIndexed(uiState.items) { index, item ->
@@ -373,7 +368,7 @@ fun LibraryScreen(
                             onClick = { onTrackSelected(item.track) },
                             onLongClick = { onTrackLongPress(item.track) },
                             onToggleFavorite = { onToggleFavorite(item.track.songId) },
-                            modifier = Modifier.padding(horizontal = 20.dp),
+                            modifier = Modifier.padding(horizontal = MFTokens.ScreenHorizontalPadding),
                         )
                     }
                 }
@@ -394,9 +389,9 @@ fun LibraryScreen(
                         Text(
                             text = "${favoriteTracks.size} liked songs",
                             fontSize = 14.sp,
-                            color = AccentGreen,
+                            color = MFColors.Accent,
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp),
                         )
                     }
                     itemsIndexed(favoriteTracks) { index, item ->
@@ -407,7 +402,7 @@ fun LibraryScreen(
                             onClick = { onTrackSelected(item.track) },
                             onLongClick = { onTrackLongPress(item.track) },
                             onToggleFavorite = { onToggleFavorite(item.track.songId) },
-                            modifier = Modifier.padding(horizontal = 20.dp),
+                            modifier = Modifier.padding(horizontal = MFTokens.ScreenHorizontalPadding),
                         )
                     }
                 }
@@ -429,9 +424,9 @@ fun LibraryScreen(
                         Text(
                             text = "${recentTracks.size} recent tracks",
                             fontSize = 14.sp,
-                            color = AccentGreen,
+                            color = MFColors.Accent,
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp),
                         )
                     }
                     itemsIndexed(recentTracks) { index, item ->
@@ -442,7 +437,7 @@ fun LibraryScreen(
                             onClick = { onTrackSelected(item.track) },
                             onLongClick = { onTrackLongPress(item.track) },
                             onToggleFavorite = { onToggleFavorite(item.track.songId) },
-                            modifier = Modifier.padding(horizontal = 20.dp),
+                            modifier = Modifier.padding(horizontal = MFTokens.ScreenHorizontalPadding),
                         )
                     }
                 }
@@ -460,11 +455,11 @@ fun LibraryScreen(
                 } else {
                     item(key = "downloads_count") {
                         Text(
-                            text = "${uiState.offlineTracks.size} downloaded songs · ${formatFileSize(uiState.offlineStorageUsedBytes)}",
+                            text = "${uiState.offlineTracks.size} downloaded songs \u00B7 ${formatFileSize(uiState.offlineStorageUsedBytes)}",
                             fontSize = 14.sp,
-                            color = AccentGreen,
+                            color = MFColors.Accent,
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp),
                         )
                     }
                     items(uiState.offlineTracks) { offlineTrack ->
@@ -472,7 +467,7 @@ fun LibraryScreen(
                             track = offlineTrack,
                             onClick = { onPlayOfflineTrack(offlineTrack) },
                             onDelete = { onDeleteOfflineTrack(offlineTrack.songId) },
-                            modifier = Modifier.padding(horizontal = 20.dp),
+                            modifier = Modifier.padding(horizontal = MFTokens.ScreenHorizontalPadding),
                         )
                     }
                 }
@@ -494,19 +489,19 @@ fun LibraryScreen(
                         Text(
                             text = "${uiState.playlists.size} playlists",
                             fontSize = 14.sp,
-                            color = AccentGreen,
+                            color = MFColors.Accent,
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp),
                         )
                     }
                     item(key = "create_playlist_inline") {
-                        CreatePlaylistCard(onClick = onCreatePlaylist, modifier = Modifier.padding(horizontal = 20.dp))
+                        CreatePlaylistCard(onClick = onCreatePlaylist, modifier = Modifier.padding(horizontal = MFTokens.ScreenHorizontalPadding))
                     }
                     items(uiState.playlists) { playlist ->
                         PlaylistRow(
                             playlist = playlist,
                             onClick = { onPlaylistSelected(playlist.id) },
-                            modifier = Modifier.padding(horizontal = 20.dp),
+                            modifier = Modifier.padding(horizontal = MFTokens.ScreenHorizontalPadding),
                         )
                     }
                 }
@@ -533,14 +528,13 @@ fun LibraryScreen(
             }
         }
 
-        // ── Loading ───────────────────────────────────────────────
         if (uiState.isLoading) {
             item(key = "loading") {
                 Box(
                     modifier = Modifier.fillMaxWidth().height(200.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator(color = AccentGreen, strokeWidth = 2.dp)
+                    CircularProgressIndicator(color = MFColors.Accent, strokeWidth = 2.dp)
                 }
             }
         }
@@ -559,11 +553,11 @@ fun LibraryScreen(
 private fun SectionTitle(title: String) {
     Text(
         text = title,
-        fontSize = 20.sp,
+        fontSize = 18.sp,
         fontWeight = FontWeight.Bold,
         color = MFColors.TextPrimary,
         letterSpacing = (-0.4).sp,
-        modifier = Modifier.padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 12.dp),
+        modifier = Modifier.padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 10.dp),
     )
 }
 
@@ -574,58 +568,59 @@ private fun ContinueListeningCard(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .width(140.dp)
-            .clip(MFTokens.MediumRadius)
-            .background(MFColors.Card)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    MFGlass.GlassPanel(
+        modifier = Modifier.width(136.dp),
+        cornerRadius = MFTokens.MediumRadius,
+        alpha = 0.08f,
     ) {
-        Box(
-            modifier = Modifier
-                .size(124.dp)
-                .clip(RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center,
+        Column(
+            modifier = Modifier.padding(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (track.artworkUrl.isNotBlank()) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(track.artworkUrl).crossfade(true).build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                Box(
-                    modifier = Modifier.fillMaxSize().background(
-                        Brush.verticalGradient(listOf(MFColors.Accent.copy(alpha = 0.3f), MFColors.Accent.copy(alpha = 0.08f)))
-                    ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = MFColors.Accent, modifier = Modifier.size(32.dp))
+            Box(
+                modifier = Modifier
+                    .size(112.dp)
+                    .clip(RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (track.artworkUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(track.artworkUrl).crossfade(true).build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(
+                            Brush.verticalGradient(listOf(MFColors.Accent.copy(alpha = 0.3f), MFColors.Accent.copy(alpha = 0.08f)))
+                        ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = MFColors.Accent, modifier = Modifier.size(32.dp))
+                    }
                 }
             }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = track.title,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = MFColors.TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                text = track.artist,
+                fontSize = 10.sp,
+                color = MFColors.TextTertiary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = track.title,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = MFColors.TextPrimary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text(
-            text = track.artist,
-            fontSize = 10.sp,
-            color = MFColors.TextSecondary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }
 
@@ -633,8 +628,8 @@ private fun ContinueListeningCard(
 private fun LikedSongsCard(count: Int, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .width(140.dp)
-            .height(176.dp)
+            .width(136.dp)
+            .height(170.dp)
             .clip(MFTokens.MediumRadius)
             .background(
                 Brush.verticalGradient(
@@ -642,7 +637,7 @@ private fun LikedSongsCard(count: Int, onClick: () -> Unit) {
                 )
             )
             .clickable(onClick = onClick)
-            .padding(14.dp),
+            .padding(16.dp),
     ) {
         Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
             Icon(
@@ -670,66 +665,66 @@ private fun LikedSongsCard(count: Int, onClick: () -> Unit) {
 
 @Composable
 private fun CreatePlaylistCard(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .width(140.dp)
-            .height(176.dp)
-            .clip(MFTokens.MediumRadius)
-            .background(MFColors.Elevated)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
+    MFGlass.GlassPanel(
+        modifier = modifier.width(136.dp).height(170.dp),
+        cornerRadius = MFTokens.MediumRadius,
+        alpha = 0.08f,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MFColors.Accent.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(imageVector = Icons.Filled.Add, contentDescription = null, tint = MFColors.Accent, modifier = Modifier.size(24.dp))
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MFColors.Accent.copy(alpha = 0.15f))
+                        .border(width = 0.5.dp, color = MFColors.Accent.copy(alpha = 0.2f), shape = RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(imageVector = Icons.Filled.Add, contentDescription = null, tint = MFColors.Accent, modifier = Modifier.size(24.dp))
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = "Create", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = MFColors.TextSecondary)
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "Create", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MFColors.TextSecondary)
         }
     }
 }
 
 @Composable
 private fun PlaylistGridCard(playlist: PlaylistEntity, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .width(140.dp)
-            .height(176.dp)
-            .clip(MFTokens.MediumRadius)
-            .background(MFColors.Card)
-            .clickable(onClick = onClick)
-            .padding(14.dp),
+    MFGlass.GlassPanel(
+        modifier = Modifier.width(148.dp).height(184.dp),
+        cornerRadius = MFTokens.MediumRadius,
+        alpha = 0.08f,
     ) {
-        Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MFColors.Accent.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(imageVector = Icons.Filled.PlaylistPlay, contentDescription = null, tint = MFColors.Accent, modifier = Modifier.size(24.dp))
-            }
-            Column {
-                Text(
-                    text = playlist.name,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MFColors.TextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = "Playlist",
-                    fontSize = 11.sp,
-                    color = MFColors.TextSecondary,
-                )
+        Box(
+            modifier = Modifier.fillMaxSize().clickable(onClick = onClick).padding(16.dp),
+        ) {
+            Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MFColors.Accent.copy(alpha = 0.12f))
+                        .border(width = 0.5.dp, color = MFColors.Accent.copy(alpha = 0.15f), shape = RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(imageVector = Icons.Filled.PlaylistPlay, contentDescription = null, tint = MFColors.Accent, modifier = Modifier.size(24.dp))
+                }
+                Column {
+                    Text(
+                        text = playlist.name,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MFColors.TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = "Playlist",
+                        fontSize = 11.sp,
+                        color = MFColors.TextTertiary,
+                    )
+                }
             }
         }
     }
@@ -742,14 +737,15 @@ private fun OfflineTrackRow(track: OfflineTrackEntity, onClick: () -> Unit, onDe
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
+            .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(44.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(DarkSurfaceVariant),
+                .background(MFColors.GlassMid)
+                .border(width = 0.5.dp, color = MFColors.GlassBorder, shape = RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center,
         ) {
             if (track.artworkUrl.isNotBlank()) {
@@ -761,17 +757,17 @@ private fun OfflineTrackRow(track: OfflineTrackEntity, onClick: () -> Unit, onDe
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
-                Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = OnBackgroundVariant, modifier = Modifier.size(20.dp))
+                Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = MFColors.TextTertiary, modifier = Modifier.size(18.dp))
             }
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = track.title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = OnBackground, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(text = track.artist, fontSize = 12.sp, color = OnBackgroundVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = track.title, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MFColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = track.artist, fontSize = 11.sp, color = MFColors.TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Text(text = formatFileSize(track.fileSize), fontSize = 11.sp, color = AccentGreen, modifier = Modifier.padding(end = 8.dp))
-        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(imageVector = Icons.Filled.Close, contentDescription = "Remove", tint = ErrorRed, modifier = Modifier.size(18.dp))
+        Text(text = formatFileSize(track.fileSize), fontSize = 10.sp, color = MFColors.Accent, modifier = Modifier.padding(end = 6.dp))
+        IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
+            Icon(imageVector = Icons.Filled.Close, contentDescription = "Remove", tint = MFColors.Error, modifier = Modifier.size(16.dp))
         }
     }
 }
@@ -792,25 +788,24 @@ private fun MostPlayedRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(vertical = 8.dp),
+            .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Rank number
         Text(
             text = "$rank",
-            fontSize = 14.sp,
+            fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
-            color = if (rank <= 3) AccentGreen else OnBackgroundVariant,
+            color = if (rank <= 3) MFColors.Accent else MFColors.TextTertiary,
             modifier = Modifier.width(28.dp),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
 
-        // Thumbnail
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(44.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(DarkSurfaceVariant),
+                .background(MFColors.GlassMid)
+                .border(width = 0.5.dp, color = MFColors.GlassBorder, shape = RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center,
         ) {
             if (track.artworkUrl.isNotBlank()) {
@@ -822,7 +817,7 @@ private fun MostPlayedRow(
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
-                Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = OnBackgroundVariant, modifier = Modifier.size(20.dp))
+                Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = MFColors.TextTertiary, modifier = Modifier.size(18.dp))
             }
         }
 
@@ -831,27 +826,27 @@ private fun MostPlayedRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
-                color = OnBackground,
+                color = MFColors.TextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = track.artist,
-                fontSize = 12.sp,
-                color = OnBackgroundVariant,
+                fontSize = 11.sp,
+                color = MFColors.TextSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
 
-        IconButton(onClick = onToggleFavorite, modifier = Modifier.size(36.dp)) {
+        IconButton(onClick = onToggleFavorite, modifier = Modifier.size(32.dp)) {
             Icon(
                 imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                 contentDescription = if (isFavorite) "Unlike" else "Like",
-                tint = if (isFavorite) ErrorRed else OnBackgroundVariant,
-                modifier = Modifier.size(20.dp),
+                tint = if (isFavorite) MFColors.Error else MFColors.TextTertiary,
+                modifier = Modifier.size(18.dp),
             )
         }
     }
@@ -866,35 +861,35 @@ private fun FilterEmptyState(
     onAction: (() -> Unit)? = null,
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 60.dp, horizontal = 20.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 50.dp, horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            modifier = Modifier
-                .size(100.dp)
-                .clip(CircleShape)
-                .background(DarkSurfaceVariant),
-            contentAlignment = Alignment.Center,
+        MFGlass.GlassPanel(
+            modifier = Modifier.size(88.dp),
+            cornerRadius = RoundedCornerShape(88.dp),
+            alpha = 0.08f,
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = AccentGreen.copy(alpha = 0.5f),
-                modifier = Modifier.size(48.dp),
-            )
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MFColors.Accent.copy(alpha = 0.5f),
+                    modifier = Modifier.size(42.dp),
+                )
+            }
         }
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
         Text(
             text = title,
-            fontSize = 20.sp,
+            fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = OnBackground,
+            color = MFColors.TextPrimary,
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = subtitle,
             fontSize = 14.sp,
-            color = OnBackgroundVariant,
+            color = MFColors.TextSecondary,
             lineHeight = 20.sp,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
@@ -903,14 +898,14 @@ private fun FilterEmptyState(
             androidx.compose.material3.Button(
                 onClick = onAction,
                 shape = RoundedCornerShape(25.dp),
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = AccentGreen),
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = MFColors.Accent),
                 contentPadding = PaddingValues(horizontal = 28.dp, vertical = 10.dp),
             ) {
                 Text(
                     text = actionLabel,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black,
+                    color = MFColors.TextOnAccent,
                 )
             }
         }
@@ -924,20 +919,21 @@ private fun PlaylistRow(playlist: PlaylistEntity, onClick: () -> Unit, modifier:
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .size(52.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(AccentGreen.copy(alpha = 0.12f)),
+                .size(48.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MFColors.Accent.copy(alpha = 0.12f))
+                .border(width = 0.5.dp, color = MFColors.Accent.copy(alpha = 0.15f), shape = RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = Icons.Filled.PlaylistPlay,
                 contentDescription = null,
-                tint = AccentGreen,
+                tint = MFColors.Accent,
                 modifier = Modifier.size(24.dp),
             )
         }
@@ -945,16 +941,16 @@ private fun PlaylistRow(playlist: PlaylistEntity, onClick: () -> Unit, modifier:
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = playlist.name,
-                fontSize = 16.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = OnBackground,
+                color = MFColors.TextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = "Playlist",
                 fontSize = 13.sp,
-                color = OnBackgroundVariant,
+                color = MFColors.TextTertiary,
             )
         }
     }
@@ -963,35 +959,35 @@ private fun PlaylistRow(playlist: PlaylistEntity, onClick: () -> Unit, modifier:
 @Composable
 private fun EmptyLibraryState() {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(40.dp),
+        modifier = Modifier.fillMaxWidth().padding(36.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            modifier = Modifier
-                .size(100.dp)
-                .clip(CircleShape)
-                .background(DarkSurfaceVariant),
-            contentAlignment = Alignment.Center,
+        MFGlass.GlassPanel(
+            modifier = Modifier.size(88.dp),
+            cornerRadius = RoundedCornerShape(88.dp),
+            alpha = 0.08f,
         ) {
-            Icon(
-                imageVector = Icons.Filled.LibraryMusic,
-                contentDescription = null,
-                tint = AccentGreen.copy(alpha = 0.5f),
-                modifier = Modifier.size(48.dp),
-            )
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Filled.LibraryMusic,
+                    contentDescription = null,
+                    tint = MFColors.Accent.copy(alpha = 0.5f),
+                    modifier = Modifier.size(42.dp),
+                )
+            }
         }
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
         Text(
             text = "No music yet",
-            fontSize = 22.sp,
+            fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            color = OnBackground,
+            color = MFColors.TextPrimary,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "Songs you play will appear here.\nSearch for music to get started.",
             fontSize = 14.sp,
-            color = OnBackgroundVariant,
+            color = MFColors.TextSecondary,
             lineHeight = 20.sp,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
@@ -1000,10 +996,3 @@ private fun EmptyLibraryState() {
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
-private fun formatFileSize(bytes: Long): String {
-    return when {
-        bytes < 1024 -> "$bytes B"
-        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
-        else -> "${"%.1f".format(bytes / (1024.0 * 1024.0))} MB"
-    }
-}

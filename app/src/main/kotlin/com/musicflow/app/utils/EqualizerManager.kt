@@ -6,6 +6,7 @@ import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
 import android.media.audiofx.LoudnessEnhancer
 import android.media.audiofx.Virtualizer
+import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,6 +27,10 @@ enum class EqualizerPreset(val label: String, val bass: Int, val virtualizer: In
 class EqualizerManager @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
+    companion object {
+        private const val TAG = "EqualizerManager"
+    }
+
     private var bassBoost: BassBoost? = null
     private var virtualizer: Virtualizer? = null
     private var equalizer: Equalizer? = null
@@ -67,6 +72,7 @@ class EqualizerManager @Inject constructor(
             bassBoost?.setStrength(preset.bass.toShort())
             virtualizer?.setStrength(preset.virtualizer.toShort())
         } catch (e: Exception) {
+            Log.w(TAG, "Failed to apply preset: ${e.message}")
         }
     }
 
@@ -74,6 +80,7 @@ class EqualizerManager @Inject constructor(
         try {
             bassBoost?.setStrength(strength.coerceIn(0, 1000).toShort())
         } catch (e: Exception) {
+            Log.w(TAG, "Failed to set bass boost: ${e.message}")
         }
     }
 
@@ -81,6 +88,7 @@ class EqualizerManager @Inject constructor(
         try {
             virtualizer?.setStrength(strength.coerceIn(0, 1000).toShort())
         } catch (e: Exception) {
+            Log.w(TAG, "Failed to set virtualizer: ${e.message}")
         }
     }
 
@@ -94,6 +102,7 @@ class EqualizerManager @Inject constructor(
                 }
             }
         } catch (e: Exception) {
+            Log.w(TAG, "Failed to set volume normalization: ${e.message}")
         }
     }
 
@@ -103,6 +112,7 @@ class EqualizerManager @Inject constructor(
             virtualizer?.enabled = enabled
             equalizer?.enabled = enabled
         } catch (e: Exception) {
+            Log.w(TAG, "Failed to toggle equalizer: ${e.message}")
         }
     }
 

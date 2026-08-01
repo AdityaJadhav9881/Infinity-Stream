@@ -128,39 +128,56 @@ class SearchRepository @Inject constructor() {
         }
     }
 
-    suspend fun extractAudioWithHeaders(videoId: String): AudioExtractionResult {
+    suspend fun extractAudioWithHeaders(videoId: String, maxRetries: Int = 2): AudioExtractionResult {
         return withContext(Dispatchers.IO) {
-            val videoUrl = "https://www.youtube.com/watch?v=$videoId"
-            val request = YoutubeDLRequest(videoUrl)
-            request.addOption("-f", "bestaudio")
-            request.addOption("--no-playlist")
-            request.addOption("--no-warnings")
-            request.addOption("--dump-json")
+            var lastException: Exception? = null
+            repeat(maxRetries) { attempt ->
+                try {
+                    val videoUrl = "https://www.youtube.com/watch?v=$videoId"
+                    val request = YoutubeDLRequest(videoUrl)
+                    request.addOption("-f", "bestaudio")
+                    request.addOption("--no-playlist")
+                    request.addOption("--no-warnings")
+                    request.addOption("--dump-json")
 
-            val response = YoutubeDL.getInstance().execute(request)
-            val output = response.out
+                    val response = YoutubeDL.getInstance().execute(request)
+                    val output = response.out
 
-            val json = JSONObject(output)
-            val url = json.optString("url", "")
+                    val json = JSONObject(output)
+                    val url = json.optString("url", "")
 
-            if (url.isBlank()) {
-                throw Exception("No audio URL in response")
-            }
+                    if (url.isBlank()) {
+                        throw Exception("No audio URL in response")
+                    }
 
-            // Extract http_headers from yt-dlp response
-            val headers = mutableMapOf<String, String>()
-            val headersJson = json.optJSONObject("http_headers")
-            if (headersJson != null) {
-                for (key in headersJson.keys()) {
-                    headers[key] = headersJson.optString(key, "")
+                    // Validate URL format
+                    if (!url.startsWith("https://") && !url.startsWith("http://")) {
+                        throw Exception("Invalid audio URL format: ${url.take(50)}")
+                    }
+
+                    // Extract http_headers from yt-dlp response
+                    val headers = mutableMapOf<String, String>()
+                    val headersJson = json.optJSONObject("http_headers")
+                    if (headersJson != null) {
+                        for (key in headersJson.keys()) {
+                            headers[key] = headersJson.optString(key, "")
+                        }
+                        Log.i("SearchRepository", "Extracted ${headers.size} headers for $videoId: ${headers.keys}")
+                    } else {
+                        Log.w("SearchRepository", "No http_headers in response for $videoId")
+                    }
+
+                    Log.i("SearchRepository", "Audio stream resolved for $videoId (attempt ${attempt + 1})")
+                    return@withContext AudioExtractionResult(url = url, headers = headers)
+                } catch (e: Exception) {
+                    lastException = e
+                    Log.w("SearchRepository", "Extraction attempt ${attempt + 1} failed for $videoId: ${e.message}")
+                    if (attempt < maxRetries - 1) {
+                        kotlinx.coroutines.delay(1000L * (attempt + 1)) // exponential backoff
+                    }
                 }
-                Log.i("SearchRepository", "Extracted ${headers.size} headers for $videoId: ${headers.keys}")
-            } else {
-                Log.w("SearchRepository", "No http_headers in response for $videoId")
             }
-
-            Log.i("SearchRepository", "Audio stream resolved for $videoId")
-            AudioExtractionResult(url = url, headers = headers)
+            throw lastException ?: Exception("Audio extraction failed for $videoId")
         }
     }
 

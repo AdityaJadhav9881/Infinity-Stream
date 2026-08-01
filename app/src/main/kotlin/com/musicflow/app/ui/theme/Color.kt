@@ -4,135 +4,123 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 /**
- * MusicFlow Design System — Color Tokens
+ * MusicFlow Premium Design System — Color Tokens
  *
- * Premium dark-only palette with layered surfaces.
- * No pure black. Every surface has depth and intention.
+ * Futuristic glassmorphism palette with layered depth.
+ * Near-black backgrounds with soft transparency layers.
+ * Every surface breathes. Nothing feels flat.
  *
- * ## Surface Hierarchy
- * - Background (#0B0B0E) — deepest layer
- * - Card (#15161A) — resting surface
- * - Elevated (#1B1C20) — interactive surface
- * - Overlay (#22242A) — highest layer
+ * ## Surface Hierarchy (Glass Layers)
+ * - Background (#09090B) — deepest void
+ * - GlassLow (8%) — resting cards
+ * - GlassMid (14%) — interactive elements
+ * - GlassHigh (22%) — elevated floating elements
+ * - GlassOverlay (30%) — dialogs, menus
  *
  * ## Accent
- * Modern emerald green with dynamic variant support.
- * Dynamic accent colors can be generated from album artwork.
+ * Neon green with dynamic variant support from album artwork.
  */
 object MFColors {
     // ── Background Layers ───────────────────────────────────────────────
 
-    /** Deepest background layer — warm dark, never pure black. */
-    val Background = Color(0xFF0B0B0E)
+    /** Deepest background — near-black void. */
+    val Background = Color(0xFF09090B)
 
-    /** Card surface — resting state for content blocks. */
-    val Card = Color(0xFF15161A)
+    /** Glass layer 1 — resting cards, subtle depth. */
+    val GlassLow = Color(0x14FFFFFF)
 
-    /** Elevated surface — interactive elements, buttons, chips. */
-    val Elevated = Color(0xFF1B1C20)
+    /** Glass layer 2 — interactive elements. */
+    val GlassMid = Color(0x22FFFFFF)
 
-    /** Highest overlay layer — dialogs, menus, floating elements. */
-    val Overlay = Color(0xFF22242A)
+    /** Glass layer 3 — elevated floating elements. */
+    val GlassHigh = Color(0x38FFFFFF)
 
-    /** Subtle surface for thin dividers and borders. */
-    val Subtle = Color(0xFF2A2C33)
+    /** Glass overlay — dialogs, menus, sheets. */
+    val GlassOverlay = Color(0x4DFFFFFF)
+
+    /** Solid dialog background — opaque for readability. */
+    val DialogBackground = Color(0xFF1A1A1E)
+
+    // ── Legacy Surface Aliases ──────────────────────────────────────────
+    val Card get() = GlassLow
+    val Elevated get() = GlassMid
+    val Overlay get() = GlassOverlay
+    val Subtle = Color(0x0DFFFFFF)
 
     // ── Text ────────────────────────────────────────────────────────────
 
-    /** Primary text — high contrast, readable on all surfaces. */
-    val TextPrimary = Color(0xFFF0F0F5)
+    /** Primary text — crisp white on any surface. */
+    val TextPrimary = Color(0xFFF5F5F7)
 
     /** Secondary text — subtitles, descriptions. */
-    val TextSecondary = Color(0xFF9496A0)
+    val TextSecondary = Color(0xFF86888F)
 
-    /** Tertiary text — timestamps, metadata, hints. */
-    val TextTertiary = Color(0xFF5C5E6A)
+    /** Tertiary text — metadata, timestamps, hints. */
+    val TextTertiary = Color(0xFF4A4C54)
 
     /** Text on accent-colored surfaces. */
-    val TextOnAccent = Color(0xFF0B0B0E)
+    val TextOnAccent = Color(0xFF09090B)
 
-    // ── Accent (Modern Emerald) ─────────────────────────────────────────
+    // ── Accent (Neon Emerald) ───────────────────────────────────────────
 
-    /** Primary accent — modern emerald green. */
+    /** Primary accent — neon emerald green. */
     val Accent = Color(0xFF1ED760)
 
-    /** Accent for pressed/active states. */
-    val AccentPressed = Color(0xFF1AAE50)
+    /** Accent pressed/active state. */
+    val AccentPressed = Color(0xFF18B84F)
 
-    /** Subtle accent for containers and highlights. */
+    /** Subtle accent container. */
     val AccentSubtle = Color(0xFF1ED760).copy(alpha = 0.12f)
 
-    /** Accent glow — used for artwork glow effects. */
+    /** Accent glow — artwork glow, active indicators. */
     val AccentGlow = Color(0xFF1ED760).copy(alpha = 0.30f)
 
     // ── Secondary & Tertiary ────────────────────────────────────────────
 
-    /** Secondary accent — violet for shuffle, repeat, special actions. */
+    /** Secondary — violet for shuffle, repeat. */
     val Secondary = Color(0xFFA78BFA)
 
-    /** Tertiary accent — cyan for subtle indicators. */
+    /** Tertiary — cyan for subtle indicators. */
     val Tertiary = Color(0xFF22D3EE)
 
     // ── Semantic ────────────────────────────────────────────────────────
 
-    /** Error / destructive actions. */
     val Error = Color(0xFFEF4444)
-
-    /** Error container. */
     val ErrorContainer = Color(0xFFEF4444).copy(alpha = 0.12f)
-
-    /** Success states. */
     val Success = Color(0xFF1ED760)
-
-    /** Warning states. */
     val Warning = Color(0xFFFBBF24)
 
     // ── Dividers & Borders ─────────────────────────────────────────────
 
-    /** Subtle divider between list items. */
-    val Divider = Color(0xFF1E2028)
+    /** Ultra-subtle divider — barely visible. */
+    val Divider = Color(0x0FFFFFFF)
+
+    /** Glass border — thin white edge with low opacity. */
+    val GlassBorder = Color(0x1AFFFFFF)
 
     /** Active border for focused inputs. */
     val BorderActive = Color(0xFF1ED760)
 
     // ── Progress ────────────────────────────────────────────────────────
 
-    /** Track background (unfilled portion). */
-    val ProgressTrack = Color(0xFF2A2C33)
-
-    /** Filled portion — matches accent. */
+    val ProgressTrack = Color(0x1AFFFFFF)
     val ProgressFill = Color(0xFF1ED760)
-
-    /** Thumb/handle for sliders. */
     val ProgressThumb = Color(0xFFFFFFFF)
 
-    // ── Glass ───────────────────────────────────────────────────────────
-
-    /** Glassmorphism background — semi-transparent with blur. */
-    val GlassBackground = Color(0x14FFFFFF)
-
-    /** Glass border — subtle white edge. */
-    val GlassBorder = Color(0x1AFFFFFF)
-
-    /** Glass surface for mini player, bottom nav. */
-    val GlassSurface = Color(0x0DFFFFFF)
-
     // ── Dynamic Color Placeholders ──────────────────────────────────────
-    // These are replaced at runtime with colors extracted from album artwork.
 
-    /** Dynamic accent — extracted from current album artwork. */
+    /** Dynamic accent — extracted from album artwork. */
     var DynamicAccent = Accent
         private set
 
-    /** Dynamic glow — extracted from current album artwork. */
+    /** Dynamic glow — extracted from album artwork. */
     var DynamicGlow = AccentGlow
         private set
 
-    /** Dynamic gradient — extracted from current album artwork. */
+    /** Dynamic gradient — extracted from album artwork. */
     var DynamicGradient = listOf(Accent, Accent.copy(alpha = 0.6f))
         private set
 
-    /** Update dynamic colors from album artwork palette. */
     fun updateDynamicColors(
         accent: Color = Accent,
         glow: Color = AccentGlow,
@@ -143,7 +131,6 @@ object MFColors {
         DynamicGradient = gradient
     }
 
-    /** Reset dynamic colors to defaults. */
     fun resetDynamicColors() {
         DynamicAccent = Accent
         DynamicGlow = AccentGlow
@@ -151,14 +138,14 @@ object MFColors {
     }
 }
 
-// ── Legacy Aliases (for backward compatibility) ──────────────────────────
+// ── Legacy Aliases ──────────────────────────────────────────────────────
 
 val Black get() = MFColors.Background
-val DarkSurface get() = MFColors.Card
-val DarkSurfaceVariant get() = MFColors.Elevated
-val DarkSurfaceContainer get() = MFColors.Overlay
-val GlassSurface get() = MFColors.GlassSurface
-val CardSurface get() = MFColors.Card
+val DarkSurface get() = MFColors.GlassLow
+val DarkSurfaceVariant get() = MFColors.GlassMid
+val DarkSurfaceContainer get() = MFColors.GlassHigh
+val GlassSurface get() = MFColors.GlassLow
+val CardSurface get() = MFColors.GlassLow
 val OnBackground get() = MFColors.TextPrimary
 val OnBackgroundVariant get() = MFColors.TextSecondary
 val OnAccent get() = MFColors.TextOnAccent
@@ -178,19 +165,11 @@ val ProgressThumb get() = MFColors.ProgressThumb
 // ── Brush Utilities ──────────────────────────────────────────────────────
 
 object MFBrushes {
-    /** Background gradient — top-to-bottom depth. */
+    /** Background gradient — subtle depth. */
     val BackgroundGradient = Brush.verticalGradient(
         colors = listOf(
             MFColors.Background,
-            MFColors.Background.copy(alpha = 0.95f),
-        )
-    )
-
-    /** Card gradient — subtle top-to-bottom for depth. */
-    val CardGradient = Brush.verticalGradient(
-        colors = listOf(
-            MFColors.Card,
-            MFColors.Card.copy(alpha = 0.98f),
+            MFColors.Background,
         )
     )
 
@@ -198,14 +177,14 @@ object MFBrushes {
     val AccentGradient = Brush.horizontalGradient(
         colors = listOf(
             MFColors.Accent,
-            MFColors.Accent.copy(alpha = 0.8f),
+            MFColors.Accent.copy(alpha = 0.85f),
         )
     )
 
     /** Glow gradient — radial from center for artwork effects. */
     fun glowGradient(color: Color) = Brush.radialGradient(
         colors = listOf(
-            color.copy(alpha = 0.4f),
+            color.copy(alpha = 0.45f),
             color.copy(alpha = 0.0f),
         )
     )

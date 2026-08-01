@@ -98,8 +98,9 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isTrendingLoading = true, trendingError = null) }
             try {
+                val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
                 val queries = listOf(
-                    "trending songs India 2024",
+                    "trending songs India $currentYear",
                     "Hindi trending songs",
                     "Marathi trending songs",
                 )

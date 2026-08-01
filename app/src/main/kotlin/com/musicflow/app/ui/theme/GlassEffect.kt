@@ -11,55 +11,40 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/**
- * Glassmorphism composables for MusicFlow.
- *
- * Used ONLY where it improves the experience:
- * - Mini Player
- * - Bottom Navigation
- * - Dialogs
- * - Floating Menus
- * - Context Menus
- *
- * Performance-conscious: minimal blur, subtle effects.
- */
 object MFGlass {
 
-    /**
-     * Glass surface modifier — semi-transparent background with subtle border.
-     *
-     * @param cornerRadius Shape of the glass surface.
-     * @param alpha Background alpha (lower = more transparent).
-     */
     fun Modifier.glass(
         cornerRadius: RoundedCornerShape = MFTokens.MediumRadius,
-        alpha: Float = 0.08f,
+        alpha: Float = 0.10f,
     ): Modifier = this
         .shadow(
-            elevation = MFTokens.ElevationMedium,
+            elevation = MFTokens.ElevationLow,
             shape = cornerRadius,
-            ambientColor = Color.Black.copy(alpha = 0.3f),
-            spotColor = Color.Black.copy(alpha = 0.2f),
+            ambientColor = Color.Black.copy(alpha = 0.30f),
+            spotColor = Color.Black.copy(alpha = 0.18f),
         )
         .clip(cornerRadius)
-        .background(MFColors.Background.copy(alpha = alpha))
+        .background(
+            Brush.verticalGradient(
+                colors = listOf(
+                    Color.White.copy(alpha = alpha),
+                    Color.White.copy(alpha = alpha * 0.5f),
+                )
+            )
+        )
         .border(
             width = 0.5.dp,
             color = MFColors.GlassBorder,
             shape = cornerRadius,
         )
 
-    /**
-     * Glass panel — a Box with glass effect applied.
-     */
     @Composable
     fun GlassPanel(
         modifier: Modifier = Modifier,
         cornerRadius: RoundedCornerShape = MFTokens.MediumRadius,
-        alpha: Float = 0.08f,
+        alpha: Float = 0.10f,
         content: @Composable BoxScope.() -> Unit,
     ) {
         Box(
@@ -68,9 +53,6 @@ object MFGlass {
         )
     }
 
-    /**
-     * Mini player glass background.
-     */
     @Composable
     fun MiniPlayerGlass(
         modifier: Modifier = Modifier,
@@ -79,17 +61,17 @@ object MFGlass {
         Box(
             modifier = modifier
                 .shadow(
-                    elevation = MFTokens.ElevationHigh,
+                    elevation = MFTokens.ElevationMedium,
                     shape = MFTokens.LargeRadius,
-                    ambientColor = Color.Black.copy(alpha = 0.4f),
-                    spotColor = Color.Black.copy(alpha = 0.3f),
+                    ambientColor = Color.Black.copy(alpha = 0.40f),
+                    spotColor = Color.Black.copy(alpha = 0.28f),
                 )
                 .clip(MFTokens.LargeRadius)
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            MFColors.Card.copy(alpha = 0.95f),
-                            MFColors.Background.copy(alpha = 0.90f),
+                            Color.White.copy(alpha = 0.10f),
+                            Color.White.copy(alpha = 0.05f),
                         )
                     )
                 )
@@ -102,9 +84,6 @@ object MFGlass {
         )
     }
 
-    /**
-     * Bottom navigation glass background.
-     */
     @Composable
     fun BottomNavGlass(
         modifier: Modifier = Modifier,
@@ -113,17 +92,17 @@ object MFGlass {
         Box(
             modifier = modifier
                 .shadow(
-                    elevation = MFTokens.ElevationHigh,
+                    elevation = MFTokens.ElevationMedium,
                     shape = MFTokens.LargeRadius,
-                    ambientColor = Color.Black.copy(alpha = 0.5f),
-                    spotColor = Color.Black.copy(alpha = 0.3f),
+                    ambientColor = Color.Black.copy(alpha = 0.45f),
+                    spotColor = Color.Black.copy(alpha = 0.32f),
                 )
                 .clip(MFTokens.LargeRadius)
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            MFColors.Background.copy(alpha = 0.92f),
-                            MFColors.Background.copy(alpha = 0.85f),
+                            Color.White.copy(alpha = 0.08f),
+                            Color.White.copy(alpha = 0.04f),
                         )
                     )
                 )
@@ -136,9 +115,6 @@ object MFGlass {
         )
     }
 
-    /**
-     * Dialog glass background.
-     */
     @Composable
     fun DialogGlass(
         modifier: Modifier = Modifier,
@@ -149,11 +125,11 @@ object MFGlass {
                 .shadow(
                     elevation = MFTokens.ElevationHigh,
                     shape = MFTokens.LargeRadius,
-                    ambientColor = Color.Black.copy(alpha = 0.5f),
-                    spotColor = Color.Black.copy(alpha = 0.4f),
+                    ambientColor = Color.Black.copy(alpha = 0.50f),
+                    spotColor = Color.Black.copy(alpha = 0.38f),
                 )
                 .clip(MFTokens.LargeRadius)
-                .background(MFColors.Overlay)
+                .background(MFColors.GlassOverlay)
                 .border(
                     width = 0.5.dp,
                     color = MFColors.GlassBorder,

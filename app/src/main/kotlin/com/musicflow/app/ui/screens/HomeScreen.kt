@@ -4,10 +4,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -89,6 +87,7 @@ import com.musicflow.app.data.local.entity.TrackEntity
 import com.musicflow.app.ui.theme.MFAnimations
 import com.musicflow.app.ui.theme.MFColors
 import com.musicflow.app.ui.theme.MFBrushes
+import com.musicflow.app.ui.theme.MFGlass
 import com.musicflow.app.ui.theme.MFTokens
 import java.util.Calendar
 
@@ -130,6 +129,7 @@ fun HomeScreen(
     onRetryTrending: () -> Unit = {},
     favoriteTracks: List<TrackEntity> = emptyList(),
     playlistTracks: Map<Long, List<TrackEntity>> = emptyMap(),
+    userName: String = "",
     modifier: Modifier = Modifier,
 ) {
     var showNotifications by remember { mutableStateOf(false) }
@@ -139,9 +139,8 @@ fun HomeScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MFColors.Background),
-        contentPadding = PaddingValues(bottom = 100.dp),
+        contentPadding = PaddingValues(bottom = 120.dp),
     ) {
-        // ── Hero Greeting ───────────────────────────────────────────
         item(key = "hero") {
             HeroHeader(
                 onNotificationClick = { showNotifications = true },
@@ -151,7 +150,6 @@ fun HomeScreen(
             )
         }
 
-        // ── Quick Actions ───────────────────────────────────────────
         item(key = "quick_actions") {
             QuickActionsGrid(
                 trackCount = recentTracks.size,
@@ -163,7 +161,6 @@ fun HomeScreen(
             )
         }
 
-        // ── Continue Listening ───────────────────────────────────────
         if (recentTracks.isNotEmpty()) {
             item(key = "continue_header") {
                 SectionHeader("Continue Listening", "See All", onSeeAll = onLibraryClick)
@@ -180,7 +177,6 @@ fun HomeScreen(
             }
         }
 
-        // ── Recently Played Carousel ────────────────────────────────
         if (recentTracks.isNotEmpty()) {
             item(key = "recent_header") {
                 SectionHeader("Recently Played", "See All", onSeeAll = onRecentlyPlayedSeeAll)
@@ -202,7 +198,6 @@ fun HomeScreen(
             }
         }
 
-        // ── Mixes ───────────────────────────────────────────────────
         item(key = "mixes_header") {
             SectionHeader("Mixes For You", null)
         }
@@ -223,7 +218,6 @@ fun HomeScreen(
             }
         }
 
-        // ── Per-Playlist Carousels ──────────────────────────────────
         playlists.forEach { playlist ->
             val tracks = playlistTracks[playlist.id] ?: emptyList()
             if (tracks.isNotEmpty()) {
@@ -248,7 +242,6 @@ fun HomeScreen(
             }
         }
 
-        // ── Favorites ───────────────────────────────────────────────
         if (favoriteTracks.isNotEmpty()) {
             item(key = "favorites_header") {
                 SectionHeader("Your Favorites", "See All", onSeeAll = onFavoritesClick)
@@ -270,7 +263,6 @@ fun HomeScreen(
             }
         }
 
-        // ── Trending ────────────────────────────────────────────────
         if (trendingTracks.isNotEmpty()) {
             item(key = "trending_header") { SectionHeader("Trending Today", null) }
             itemsIndexed(trendingTracks.take(5)) { index, track ->
@@ -328,6 +320,7 @@ fun HomeScreen(
             onFavoritesClick = { showProfile = false; onFavoritesClick() },
             onDownloadsClick = { showProfile = false; onDownloadsClick() },
             onLibraryClick = { showProfile = false; onLibraryClick() },
+            userName = userName,
         )
     }
 }
@@ -353,7 +346,7 @@ private fun NotificationsDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = MFColors.Overlay,
+        containerColor = MFColors.DialogBackground,
         shape = MFTokens.LargeRadius,
         title = {
             Row(
@@ -438,10 +431,11 @@ private fun ProfileDialog(
     onFavoritesClick: () -> Unit = {},
     onDownloadsClick: () -> Unit = {},
     onLibraryClick: () -> Unit = {},
+    userName: String = "",
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = MFColors.Overlay,
+        containerColor = MFColors.DialogBackground,
         shape = MFTokens.LargeRadius,
         title = { Text("Profile", color = MFColors.TextPrimary, fontWeight = FontWeight.Bold) },
         text = {
@@ -449,22 +443,30 @@ private fun ProfileDialog(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(MFBrushes.AccentGradient),
-                    contentAlignment = Alignment.Center,
+                MFGlass.GlassPanel(
+                    modifier = Modifier.size(80.dp),
+                    cornerRadius = RoundedCornerShape(100.dp),
+                    alpha = 0.14f,
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Person,
-                        contentDescription = null,
-                        tint = MFColors.TextOnAccent,
-                        modifier = Modifier.size(40.dp),
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(MFBrushes.AccentGradient),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Person,
+                            contentDescription = null,
+                            tint = MFColors.TextOnAccent,
+                            modifier = Modifier.size(40.dp),
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("MusicFlow User", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MFColors.TextPrimary)
+                Text(
+                    text = userName.ifBlank { "MusicFlow User" },
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MFColors.TextPrimary,
+                )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text("Free Plan", fontSize = 13.sp, color = MFColors.TextSecondary)
                 Spacer(modifier = Modifier.height(24.dp))
@@ -517,34 +519,36 @@ private fun HeroHeader(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 24.dp),
+            .padding(horizontal = MFTokens.ScreenHorizontalPadding, vertical = 28.dp),
     ) {
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // Network status banner
         AnimatedVisibility(visible = !isNetworkAvailable) {
-            Row(
+            MFGlass.GlassPanel(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MFColors.Error.copy(alpha = 0.12f))
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .padding(bottom = 16.dp),
+                cornerRadius = MFTokens.MediumRadius,
+                alpha = 0.08f,
             ) {
-                Icon(
-                    imageVector = Icons.Filled.CloudOff,
-                    contentDescription = null,
-                    tint = MFColors.Error,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = "You're offline. Downloaded music still plays.",
-                    fontSize = 13.sp,
-                    color = MFColors.Error,
-                    fontWeight = FontWeight.Medium,
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CloudOff,
+                        contentDescription = null,
+                        tint = MFColors.Error,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "You're offline. Downloaded music still plays.",
+                        fontSize = 13.sp,
+                        color = MFColors.Error,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
             }
         }
 
@@ -559,9 +563,10 @@ private fun HeroHeader(
                     fontSize = MFTokens.HeroTextSize,
                     fontWeight = FontWeight.ExtraBold,
                     color = MFColors.TextPrimary,
-                    letterSpacing = (-1.0).sp,
+                    letterSpacing = (-1.5).sp,
+                    lineHeight = 44.sp,
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Continue where you left off.",
                     fontSize = 13.sp,
@@ -570,12 +575,10 @@ private fun HeroHeader(
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                // Notification Bell
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(MFColors.Elevated)
+                        .size(42.dp)
+                        .glassNotification()
                         .clickable(onClick = onNotificationClick),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -583,7 +586,7 @@ private fun HeroHeader(
                         imageVector = Icons.Filled.Notifications,
                         contentDescription = "Notifications",
                         tint = MFColors.TextSecondary,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(18.dp),
                     )
                     if (notificationCount > 0) {
                         Box(
@@ -603,26 +606,35 @@ private fun HeroHeader(
                         }
                     }
                 }
-                // Profile Avatar
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(MFBrushes.AccentGradient)
+                        .size(42.dp)
+                        .glassNotification()
                         .clickable(onClick = onProfileClick),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Person,
                         contentDescription = "Profile",
-                        tint = MFColors.TextOnAccent,
-                        modifier = Modifier.size(20.dp),
+                        tint = MFColors.Accent,
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
         }
     }
 }
+
+private fun Modifier.glassNotification(): Modifier = this
+    .shadow(
+        elevation = MFTokens.ElevationLow,
+        shape = CircleShape,
+        ambientColor = Color.Black.copy(alpha = 0.30f),
+        spotColor = Color.Black.copy(alpha = 0.20f),
+    )
+    .clip(CircleShape)
+    .background(MFColors.GlassMid)
+    .border(width = 0.5.dp, color = MFColors.GlassBorder, shape = CircleShape)
 
 // ── Quick Actions 2x2 Grid ──────────────────────────────────────────────
 
@@ -662,7 +674,7 @@ private fun QuickActionsGrid(
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             QuickActionCard(
                 title = "Library",
@@ -704,23 +716,17 @@ private fun QuickActionCard(
         label = "cardScale",
     )
 
-    Card(
+    MFGlass.GlassPanel(
         modifier = modifier
             .height(MFTokens.QuickActionHeight)
             .scale(scale)
-            .shadow(
-                elevation = if (isPressed) 1.dp else MFTokens.ElevationLow,
-                shape = MFTokens.MediumRadius,
-                ambientColor = Color.Black.copy(alpha = 0.15f),
-                spotColor = Color.Black.copy(alpha = 0.1f),
-            )
-            .clip(MFTokens.MediumRadius)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
             ),
-        colors = CardDefaults.cardColors(containerColor = MFColors.Card),
+        cornerRadius = MFTokens.MediumRadius,
+        alpha = 0.08f,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
@@ -728,9 +734,10 @@ private fun QuickActionCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(38.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(accentColor.copy(alpha = 0.12f)),
+                    .background(accentColor.copy(alpha = 0.12f))
+                    .border(width = 0.5.dp, color = accentColor.copy(alpha = 0.15f), shape = RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -740,7 +747,7 @@ private fun QuickActionCard(
                     modifier = Modifier.size(20.dp),
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
             Column {
                 Text(
                     text = title,
@@ -749,6 +756,7 @@ private fun QuickActionCard(
                     color = MFColors.TextPrimary,
                     letterSpacing = (-0.2).sp,
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle,
                     fontSize = MFTokens.CardSubtitleSize,
@@ -777,7 +785,7 @@ private fun SectionHeader(title: String, actionText: String?, onSeeAll: () -> Un
             fontSize = MFTokens.SectionHeaderTextSize,
             fontWeight = FontWeight.Bold,
             color = MFColors.TextPrimary,
-            letterSpacing = (-0.4).sp,
+            letterSpacing = (-0.5).sp,
         )
         if (actionText != null) {
             Row(
@@ -818,41 +826,37 @@ private fun ContinueListeningCard(
         label = "progress",
     )
 
-    val infiniteTransition = rememberInfiniteTransition(label = "eq")
-    val eqBar1 by infiniteTransition.animateFloat(
-        initialValue = 0.3f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+    val eqBar1 by animateFloatAsState(
+        targetValue = if (isPlaying) 1f else 0.3f,
+        animationSpec = if (isPlaying) infiniteRepeatable(tween(400, easing = FastOutSlowInEasing), RepeatMode.Reverse) else tween(300),
         label = "eq1",
     )
-    val eqBar2 by infiniteTransition.animateFloat(
-        initialValue = 0.6f, targetValue = 0.2f,
-        animationSpec = infiniteRepeatable(tween(350, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+    val eqBar2 by animateFloatAsState(
+        targetValue = if (isPlaying) 0.2f else 0.6f,
+        animationSpec = if (isPlaying) infiniteRepeatable(tween(350, easing = FastOutSlowInEasing), RepeatMode.Reverse) else tween(300),
         label = "eq2",
     )
-    val eqBar3 by infiniteTransition.animateFloat(
-        initialValue = 0.4f, targetValue = 0.9f,
-        animationSpec = infiniteRepeatable(tween(500, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+    val eqBar3 by animateFloatAsState(
+        targetValue = if (isPlaying) 0.9f else 0.4f,
+        animationSpec = if (isPlaying) infiniteRepeatable(tween(500, easing = FastOutSlowInEasing), RepeatMode.Reverse) else tween(300),
         label = "eq3",
     )
 
-    Card(
+    MFGlass.GlassPanel(
         modifier = modifier
             .fillMaxWidth()
-            .clip(MFTokens.MediumRadius)
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isPlaying) MFColors.Accent.copy(alpha = 0.08f) else MFColors.Card
-        ),
+        cornerRadius = MFTokens.MediumRadius,
+        alpha = if (isPlaying) 0.10f else 0.06f,
     ) {
         Row(
             modifier = Modifier.padding(MFTokens.SmallCardPadding),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Artwork
             Box(
                 modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(10.dp)),
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 if (track.artworkUrl.isNotBlank()) {
@@ -870,11 +874,11 @@ private fun ContinueListeningCard(
                         ),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = MFColors.Accent, modifier = Modifier.size(22.dp))
+                        Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = MFColors.Accent, modifier = Modifier.size(24.dp))
                     }
                 }
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = track.title,
@@ -892,7 +896,7 @@ private fun ContinueListeningCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 LinearProgressIndicator(
                     progress = { animatedProgress },
                     modifier = Modifier
@@ -904,27 +908,28 @@ private fun ContinueListeningCard(
                     strokeCap = StrokeCap.Round,
                 )
             }
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             if (isPlaying) {
                 Row(
                     modifier = Modifier
-                        .size(28.dp)
-                        .clip(RoundedCornerShape(6.dp))
+                        .size(26.dp)
+                        .clip(RoundedCornerShape(7.dp))
                         .background(MFColors.Accent.copy(alpha = 0.12f))
-                        .padding(5.dp),
+                        .padding(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalAlignment = Alignment.Bottom,
                 ) {
-                    Box(Modifier.weight(1f).fillMaxWidth().height((eqBar1 * 14).dp.coerceAtMost(14.dp)).clip(RoundedCornerShape(1.dp)).background(MFColors.Accent))
-                    Box(Modifier.weight(1f).fillMaxWidth().height((eqBar2 * 14).dp.coerceAtMost(14.dp)).clip(RoundedCornerShape(1.dp)).background(MFColors.Accent))
-                    Box(Modifier.weight(1f).fillMaxWidth().height((eqBar3 * 14).dp.coerceAtMost(14.dp)).clip(RoundedCornerShape(1.dp)).background(MFColors.Accent))
+                    Box(Modifier.weight(1f).fillMaxWidth().height((eqBar1 * 14).dp.coerceAtMost(14.dp)).clip(RoundedCornerShape(2.dp)).background(MFColors.Accent))
+                    Box(Modifier.weight(1f).fillMaxWidth().height((eqBar2 * 14).dp.coerceAtMost(14.dp)).clip(RoundedCornerShape(2.dp)).background(MFColors.Accent))
+                    Box(Modifier.weight(1f).fillMaxWidth().height((eqBar3 * 14).dp.coerceAtMost(14.dp)).clip(RoundedCornerShape(2.dp)).background(MFColors.Accent))
                 }
             } else {
                 Box(
                     modifier = Modifier
-                        .size(28.dp)
+                        .size(26.dp)
                         .clip(CircleShape)
-                        .background(MFColors.Elevated),
+                        .background(MFColors.GlassMid)
+                        .border(width = 0.5.dp, color = MFColors.GlassBorder, shape = CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -956,7 +961,8 @@ private fun RecentCard(track: TrackEntity, isPlaying: Boolean, onClick: () -> Un
             .width(MFTokens.RecentCardWidth)
             .scale(scale)
             .clip(MFTokens.MediumRadius)
-            .background(if (isPlaying) MFColors.Accent.copy(alpha = 0.08f) else MFColors.Card)
+            .background(MFColors.GlassLow)
+            .border(width = 0.5.dp, color = MFColors.GlassBorder, shape = MFTokens.MediumRadius)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -967,8 +973,8 @@ private fun RecentCard(track: TrackEntity, isPlaying: Boolean, onClick: () -> Un
     ) {
         Box(
             modifier = Modifier
-                .size(124.dp)
-                .clip(RoundedCornerShape(12.dp)),
+                .size(116.dp)
+                .clip(RoundedCornerShape(14.dp)),
             contentAlignment = Alignment.Center,
         ) {
             if (track.artworkUrl.isNotBlank()) {
@@ -986,13 +992,13 @@ private fun RecentCard(track: TrackEntity, isPlaying: Boolean, onClick: () -> Un
                     ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = MFColors.Accent, modifier = Modifier.size(28.dp))
+                    Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = MFColors.Accent, modifier = Modifier.size(32.dp))
                 }
             }
             if (isPlaying) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(34.dp)
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.6f)),
                     contentAlignment = Alignment.Center,
@@ -1006,7 +1012,7 @@ private fun RecentCard(track: TrackEntity, isPlaying: Boolean, onClick: () -> Un
                 }
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         Text(
             text = track.title,
             fontSize = 12.sp,
@@ -1016,6 +1022,7 @@ private fun RecentCard(track: TrackEntity, isPlaying: Boolean, onClick: () -> Un
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth(),
         )
+        Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = track.artist,
             fontSize = 10.sp,
@@ -1057,30 +1064,30 @@ private fun MixCard(mix: MixData, onClick: () -> Unit) {
 
     Box(
         modifier = Modifier
-            .width(150.dp)
+            .width(148.dp)
             .height(180.dp)
             .scale(scale)
             .shadow(
                 elevation = MFTokens.ElevationMedium,
-                shape = RoundedCornerShape(20.dp),
-                ambientColor = Color.Black.copy(alpha = 0.2f),
-                spotColor = Color.Black.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(22.dp),
+                ambientColor = Color.Black.copy(alpha = 0.35f),
+                spotColor = Color.Black.copy(alpha = 0.25f),
             )
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(22.dp))
             .background(Brush.verticalGradient(colors = mix.gradient))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
             )
-            .padding(16.dp),
+            .padding(18.dp),
     ) {
         Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
             Box(
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(34.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color.Black.copy(alpha = 0.2f)),
+                    .background(Color.Black.copy(alpha = 0.25f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -1093,10 +1100,10 @@ private fun MixCard(mix: MixData, onClick: () -> Unit) {
             Column {
                 Text(
                     text = mix.title,
-                    fontSize = 15.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
-                    letterSpacing = (-0.2).sp,
+                    letterSpacing = (-0.3).sp,
                 )
                 Text(
                     text = mix.subtitle,
@@ -1130,7 +1137,7 @@ private fun TrendingRow(
         modifier = modifier
             .fillMaxWidth()
             .scale(scale)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(if (isPlaying) MFColors.Accent.copy(alpha = 0.06f) else Color.Transparent)
             .clickable(
                 interactionSource = interactionSource,
@@ -1145,14 +1152,15 @@ private fun TrendingRow(
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
             color = if (rank <= 3) MFColors.Accent else MFColors.TextTertiary,
-            modifier = Modifier.width(32.dp),
+            modifier = Modifier.width(34.dp),
             textAlign = TextAlign.Center,
         )
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(44.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(MFColors.Elevated),
+                .background(MFColors.GlassLow)
+                .border(width = 0.5.dp, color = MFColors.GlassBorder, shape = RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center,
         ) {
             if (track.artworkUrl.isNotBlank()) {
@@ -1167,7 +1175,7 @@ private fun TrendingRow(
                 Icon(imageVector = Icons.Filled.MusicNote, contentDescription = null, tint = MFColors.TextTertiary, modifier = Modifier.size(20.dp))
             }
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,

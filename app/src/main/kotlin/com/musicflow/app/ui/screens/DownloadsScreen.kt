@@ -1,9 +1,11 @@
 package com.musicflow.app.ui.screens
 
+import com.musicflow.app.ui.util.formatFileSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -36,8 +38,6 @@ import coil.request.ImageRequest
 import com.musicflow.app.data.local.entity.OfflineTrackEntity
 import com.musicflow.app.ui.theme.*
 
-// ── Data Classes ─────────────────────────────────────────────────────────
-
 data class DownloadStats(
     val downloadedCount: Int = 0,
     val storageUsed: String = "0 MB",
@@ -54,8 +54,6 @@ data class StorageInfo(
     val remainingStorage: String = "2 GB",
     val usedPercent: Float = 0f,
 )
-
-// ── Main Screen ──────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,21 +106,21 @@ fun DownloadsScreen(
     val filters = listOf("All", "Downloaded", "Failed")
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = MFColors.Background,
         topBar = {
             TopAppBar(
                 title = {},
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = OnBackground)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MFColors.TextPrimary)
                     }
                 },
                 actions = {
                     IconButton(onClick = { showStorageManager = !showStorageManager }) {
-                        Icon(Icons.Filled.MusicNote, "Storage", tint = OnBackground)
+                        Icon(Icons.Filled.MusicNote, "Storage", tint = MFColors.TextPrimary)
                     }
                     IconButton(onClick = { showSettings = !showSettings }) {
-                        Icon(Icons.Filled.Settings, "Settings", tint = OnBackground)
+                        Icon(Icons.Filled.Settings, "Settings", tint = MFColors.TextPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -133,87 +131,110 @@ fun DownloadsScreen(
             modifier = modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = 22.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
             contentPadding = PaddingValues(bottom = 100.dp)
         ) {
-            // Header
             item {
                 Column {
                     Text(
                         text = "Downloads",
-                        fontSize = 28.sp,
+                        fontSize = 30.sp,
                         fontWeight = FontWeight.Bold,
-                        color = OnBackground
+                        color = MFColors.TextPrimary
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Downloaded Songs: ${stats.downloadedCount}",
                         fontSize = 14.sp,
-                        color = OnBackgroundVariant
+                        color = MFColors.TextSecondary
                     )
                     Text(
                         text = "Storage Used: ${stats.storageUsed} / ${storage.maxStorage}",
                         fontSize = 14.sp,
-                        color = OnBackgroundVariant
+                        color = MFColors.TextSecondary
                     )
                     Text(
                         text = "Remaining Offline Storage: ${storage.remainingStorage}",
                         fontSize = 14.sp,
-                        color = OnBackgroundVariant
+                        color = MFColors.TextSecondary
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
                     StorageProgressBar(percent = storage.usedPercent)
                 }
             }
 
-            // Active Download Status
+            if (showStorageManager) {
+                item {
+                    StorageManagerCard(
+                        storage = storage,
+                        cacheSize = cacheSize,
+                        onClearCache = onClearCache,
+                        onDeleteAllDownloads = { showDeleteAllDialog = true },
+                    )
+                }
+            }
+
+            if (showSettings) {
+                item {
+                    DownloadSettingsCard(
+                        downloadQuality = downloadQuality,
+                        onQualityChange = onDownloadQualityChange,
+                        wifiOnly = wifiOnly,
+                        onWifiOnlyChange = onWifiOnlyChange,
+                        autoDownloadLiked = autoDownloadLiked,
+                        onAutoDownloadChange = onAutoDownloadChange,
+                        smartDownloads = smartDownloads,
+                        onSmartDownloadsChange = onSmartDownloadsChange,
+                    )
+                }
+            }
+
             if (isDownloading && downloadingTrackName != null) {
                 item {
-                    Card(
+                    MFGlass.GlassPanel(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = AccentGreen.copy(alpha = 0.12f)),
-                        shape = RoundedCornerShape(12.dp),
+                        cornerRadius = MFTokens.MediumRadius,
+                        alpha = 0.10f,
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
+                            modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(AccentGreen.copy(alpha = 0.2f)),
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MFColors.Accent.copy(alpha = 0.2f))
+                                    .border(width = 0.5.dp, color = MFColors.Accent.copy(alpha = 0.25f), shape = RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.FileDownload,
                                     contentDescription = null,
-                                    tint = AccentGreen,
+                                    tint = MFColors.Accent,
                                     modifier = Modifier.size(20.dp),
                                 )
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(14.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Downloading...",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = AccentGreen,
+                                    color = MFColors.Accent,
                                 )
                                 Text(
                                     text = downloadingTrackName,
                                     fontSize = 13.sp,
-                                    color = OnBackgroundVariant,
+                                    color = MFColors.TextSecondary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
-                            androidx.compose.material3.CircularProgressIndicator(
+                            CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
-                                color = AccentGreen,
+                                color = MFColors.Accent,
                                 strokeWidth = 2.dp,
                             )
                         }
@@ -221,46 +242,44 @@ fun DownloadsScreen(
                 }
             }
 
-            // Download Success Message
             if (downloadSuccess != null) {
                 item {
-                    Card(
+                    MFGlass.GlassPanel(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = AccentGreen.copy(alpha = 0.12f)),
-                        shape = RoundedCornerShape(12.dp),
+                        cornerRadius = MFTokens.MediumRadius,
+                        alpha = 0.10f,
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
+                            modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(AccentGreen.copy(alpha = 0.2f)),
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MFColors.Accent.copy(alpha = 0.2f))
+                                    .border(width = 0.5.dp, color = MFColors.Accent.copy(alpha = 0.25f), shape = RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.FileDownload,
                                     contentDescription = null,
-                                    tint = AccentGreen,
+                                    tint = MFColors.Accent,
                                     modifier = Modifier.size(20.dp),
                                 )
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(14.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Download Complete",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = AccentGreen,
+                                    color = MFColors.Accent,
                                 )
                                 Text(
                                     text = downloadSuccess,
                                     fontSize = 13.sp,
-                                    color = OnBackgroundVariant,
+                                    color = MFColors.TextSecondary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -269,7 +288,7 @@ fun DownloadsScreen(
                                 Icon(
                                     imageVector = Icons.Filled.Close,
                                     contentDescription = "Dismiss",
-                                    tint = OnBackgroundVariant,
+                                    tint = MFColors.TextTertiary,
                                     modifier = Modifier.size(16.dp),
                                 )
                             }
@@ -278,46 +297,44 @@ fun DownloadsScreen(
                 }
             }
 
-            // Download Error Message
             if (downloadError != null) {
                 item {
-                    Card(
+                    MFGlass.GlassPanel(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = ErrorRed.copy(alpha = 0.12f)),
-                        shape = RoundedCornerShape(12.dp),
+                        cornerRadius = MFTokens.MediumRadius,
+                        alpha = 0.10f,
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
+                            modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(ErrorRed.copy(alpha = 0.2f)),
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MFColors.Error.copy(alpha = 0.2f))
+                                    .border(width = 0.5.dp, color = MFColors.Error.copy(alpha = 0.25f), shape = RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.ErrorOutline,
                                     contentDescription = null,
-                                    tint = ErrorRed,
+                                    tint = MFColors.Error,
                                     modifier = Modifier.size(20.dp),
                                 )
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(14.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Download Failed",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = ErrorRed,
+                                    color = MFColors.Error,
                                 )
                                 Text(
                                     text = downloadError,
                                     fontSize = 13.sp,
-                                    color = OnBackgroundVariant,
+                                    color = MFColors.TextSecondary,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -326,7 +343,7 @@ fun DownloadsScreen(
                                 Icon(
                                     imageVector = Icons.Filled.Close,
                                     contentDescription = "Dismiss",
-                                    tint = OnBackgroundVariant,
+                                    tint = MFColors.TextTertiary,
                                     modifier = Modifier.size(16.dp),
                                 )
                             }
@@ -335,15 +352,13 @@ fun DownloadsScreen(
                 }
             }
 
-            // Download Statistics Cards
             item {
                 DownloadStatsCards(stats = stats)
             }
 
-            // Filter Chips
             item {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     filters.forEach { filter ->
@@ -359,18 +374,23 @@ fun DownloadsScreen(
                                 )
                             },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = AccentGreen,
-                                selectedLabelColor = Color.Black,
-                                containerColor = DarkSurfaceVariant,
-                                labelColor = OnBackgroundVariant,
+                                selectedContainerColor = MFColors.Accent,
+                                selectedLabelColor = MFColors.TextOnAccent,
+                                containerColor = MFColors.GlassMid,
+                                labelColor = MFColors.TextSecondary,
                             ),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            border = FilterChipDefaults.filterChipBorder(
+                                borderColor = MFColors.GlassBorder,
+                                selectedBorderColor = MFColors.Accent.copy(alpha = 0.3f),
+                                enabled = true,
+                                selected = selected,
+                            ),
                         )
                     }
                 }
             }
 
-            // Downloaded Music List
             val displayTracks = when (selectedFilter) {
                 "Downloaded" -> offlineTracks
                 "Failed" -> emptyList()
@@ -388,12 +408,12 @@ fun DownloadsScreen(
                             text = "Downloaded Music",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = OnBackground
+                            color = MFColors.TextPrimary
                         )
                         Text(
                             text = "${displayTracks.size} songs",
                             fontSize = 13.sp,
-                            color = AccentGreen,
+                            color = MFColors.Accent,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -407,73 +427,43 @@ fun DownloadsScreen(
                 }
             }
 
-            // Storage Manager Card
-            if (showStorageManager) {
-                item {
-                    StorageManagerCard(
-                        storage = storage,
-                        cacheSize = cacheSize,
-                        onClearCache = onClearCache,
-                        onDeleteAllDownloads = { showDeleteAllDialog = true },
-                    )
-                }
-            }
-
-            // Download Settings
-            if (showSettings) {
-                item {
-                    DownloadSettingsCard(
-                        downloadQuality = downloadQuality,
-                        onQualityChange = onDownloadQualityChange,
-                        wifiOnly = wifiOnly,
-                        onWifiOnlyChange = onWifiOnlyChange,
-                        autoDownloadLiked = autoDownloadLiked,
-                        onAutoDownloadChange = onAutoDownloadChange,
-                        smartDownloads = smartDownloads,
-                        onSmartDownloadsChange = onSmartDownloadsChange,
-                    )
-                }
-            }
-
-            // Empty State
             if (offlineTracks.isEmpty() && selectedFilter == "All") {
                 item {
                     EmptyDownloadsState(onBrowseMusic = onBrowseMusic)
                 }
             }
 
-            // Failed filter empty state
             if (selectedFilter == "Failed" && displayTracks.isEmpty() && !isDownloading) {
                 item {
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(80.dp)
-                                .clip(CircleShape)
-                                .background(AccentGreen.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center,
+                        MFGlass.GlassPanel(
+                            modifier = Modifier.size(90.dp),
+                            cornerRadius = RoundedCornerShape(100.dp),
+                            alpha = 0.08f,
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.ErrorOutline,
-                                contentDescription = null,
-                                tint = AccentGreen,
-                                modifier = Modifier.size(36.dp),
-                            )
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Filled.ErrorOutline,
+                                    contentDescription = null,
+                                    tint = MFColors.Accent,
+                                    modifier = Modifier.size(40.dp),
+                                )
+                            }
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(18.dp))
                         Text(
                             text = "No failed downloads",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = OnBackground,
+                            color = MFColors.TextPrimary,
                         )
                         Text(
                             text = "All downloads completed successfully.",
                             fontSize = 13.sp,
-                            color = OnBackgroundVariant,
+                            color = MFColors.TextSecondary,
                         )
                     }
                 }
@@ -481,36 +471,34 @@ fun DownloadsScreen(
         }
     }
 
-    // Delete all downloads confirmation dialog
     if (showDeleteAllDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteAllDialog = false },
-            containerColor = DarkSurface,
-            title = { Text("Delete All Downloads?", color = OnBackground) },
+            containerColor = MFColors.DialogBackground,
+            shape = MFTokens.LargeRadius,
+            title = { Text("Delete All Downloads?", color = MFColors.TextPrimary) },
             text = {
                 Text(
                     "This will remove all ${offlineTracks.size} downloaded songs. You can re-download them later.",
-                    color = OnBackgroundVariant,
+                    color = MFColors.TextSecondary,
                 )
             },
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
+                TextButton(onClick = {
                     onDeleteAllDownloads()
                     showDeleteAllDialog = false
                 }) {
-                    Text("Delete All", color = ErrorRed)
+                    Text("Delete All", color = MFColors.Error)
                 }
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { showDeleteAllDialog = false }) {
-                    Text("Cancel", color = OnBackgroundVariant)
+                TextButton(onClick = { showDeleteAllDialog = false }) {
+                    Text("Cancel", color = MFColors.TextTertiary)
                 }
             },
         )
     }
 }
-
-// ── Components ───────────────────────────────────────────────────────────
 
 @Composable
 private fun StorageProgressBar(percent: Float) {
@@ -524,18 +512,14 @@ private fun StorageProgressBar(percent: Float) {
             .fillMaxWidth()
             .height(8.dp)
             .clip(RoundedCornerShape(4.dp))
-            .background(DarkSurfaceVariant)
+            .background(MFColors.GlassMid)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth(fraction = animatedPercent / 100f)
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(4.dp))
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(AccentGreenDark, AccentGreen, AccentGreenLight)
-                    )
-                )
+                .background(MFBrushes.AccentGradient)
         )
     }
 }
@@ -544,34 +528,34 @@ private fun StorageProgressBar(percent: Float) {
 private fun DownloadStatsCards(stats: DownloadStats) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         StatMiniCard(
             icon = Icons.Filled.FileDownload,
             label = "Downloaded",
             value = "${stats.downloadedCount}",
-            color = AccentGreen,
+            color = MFColors.Accent,
             modifier = Modifier.weight(1f)
         )
         StatMiniCard(
             icon = Icons.Filled.MusicNote,
             label = "Storage",
             value = stats.storageUsed,
-            color = TertiaryTeal,
+            color = MFColors.Tertiary,
             modifier = Modifier.weight(1f)
         )
         StatMiniCard(
             icon = Icons.Filled.FileDownload,
             label = "Active",
             value = "${stats.activeDownloads}",
-            color = SecondaryPurple,
+            color = MFColors.Secondary,
             modifier = Modifier.weight(1f)
         )
         StatMiniCard(
             icon = Icons.Filled.ErrorOutline,
             label = "Failed",
             value = "${stats.failedDownloads}",
-            color = ErrorRed,
+            color = MFColors.Error,
             modifier = Modifier.weight(1f)
         )
     }
@@ -585,31 +569,34 @@ private fun StatMiniCard(
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(DarkSurface)
-            .padding(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    MFGlass.GlassPanel(
+        modifier = modifier,
+        cornerRadius = MFTokens.MediumRadius,
+        alpha = 0.08f,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = color,
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = value,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = OnBackground
-        )
-        Text(
-            text = label,
-            fontSize = 10.sp,
-            color = OnBackgroundVariant
-        )
+        Column(
+            modifier = Modifier.padding(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = value,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = MFColors.TextPrimary
+            )
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                color = MFColors.TextTertiary
+            )
+        }
     }
 }
 
@@ -619,25 +606,25 @@ private fun DownloadedTrackRow(
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Card(
+    MFGlass.GlassPanel(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = DarkSurface),
-        shape = RoundedCornerShape(12.dp)
+        cornerRadius = MFTokens.MediumRadius,
+        alpha = 0.06f,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Artwork
             Box(
                 modifier = Modifier
-                    .size(50.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(DarkSurfaceVariant),
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MFColors.GlassMid)
+                    .border(width = 0.5.dp, color = MFColors.GlassBorder, shape = RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 val context = LocalContext.current
@@ -665,28 +652,27 @@ private fun DownloadedTrackRow(
                     Icon(
                         imageVector = Icons.Filled.MusicNote,
                         contentDescription = null,
-                        tint = OnBackgroundVariant,
-                        modifier = Modifier.size(20.dp)
+                        tint = MFColors.TextTertiary,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
-            // Track info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = track.title,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = OnBackground,
+                    color = MFColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = track.artist,
                     fontSize = 13.sp,
-                    color = OnBackgroundVariant,
+                    color = MFColors.TextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -697,37 +683,30 @@ private fun DownloadedTrackRow(
                     Text(
                         text = formatFileSize(track.fileSize),
                         fontSize = 11.sp,
-                        color = OnBackgroundVariant.copy(alpha = 0.7f)
+                        color = MFColors.TextTertiary
                     )
-                    Text("·", fontSize = 11.sp, color = OnBackgroundVariant.copy(alpha = 0.5f))
-                    Text(
-                        text = "320 kbps",
-                        fontSize = 11.sp,
-                        color = OnBackgroundVariant.copy(alpha = 0.7f)
-                    )
-                    // Offline badge
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(AccentGreen.copy(alpha = 0.15f))
-                            .padding(horizontal = 6.dp, vertical = 1.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(MFColors.Accent.copy(alpha = 0.15f))
+                            .border(width = 0.5.dp, color = MFColors.Accent.copy(alpha = 0.2f), shape = RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = "Offline",
                             fontSize = 9.sp,
-                            color = AccentGreen,
+                            color = MFColors.Accent,
                             fontWeight = FontWeight.Medium
                         )
                     }
                 }
             }
 
-            // Delete button
             IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                 Icon(
                     imageVector = Icons.Filled.Close,
                     contentDescription = "Remove",
-                    tint = ErrorRed,
+                    tint = MFColors.Error,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -742,49 +721,49 @@ private fun StorageManagerCard(
     onClearCache: () -> Unit = {},
     onDeleteAllDownloads: () -> Unit = {},
 ) {
-    Card(
+    MFGlass.GlassPanel(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = DarkSurface),
-        shape = RoundedCornerShape(16.dp)
+        cornerRadius = MFTokens.MediumRadius,
+        alpha = 0.08f,
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Text(
                 text = "Storage Manager",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = OnBackground
+                color = MFColors.TextPrimary
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            StorageRow("Music", storage.musicSize, AccentGreen)
-            StorageRow("Cache", cacheSize, SecondaryPurple)
-            HorizontalDivider(color = Divider, modifier = Modifier.padding(vertical = 8.dp))
+            Spacer(modifier = Modifier.height(18.dp))
+            StorageRow("Music", storage.musicSize, MFColors.Accent)
+            StorageRow("Cache", cacheSize, MFColors.Secondary)
+            HorizontalDivider(color = MFColors.Divider, modifier = Modifier.padding(vertical = 10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Total", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = OnBackground)
-                Text(storage.musicSize, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AccentGreen)
+                Text("Total", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MFColors.TextPrimary)
+                Text(storage.musicSize, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MFColors.Accent)
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 OutlinedButton(
                     onClick = onClearCache,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = SecondaryPurple)
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MFColors.Secondary)
                 ) {
-                    Text("Clear Cache", fontSize = 13.sp, color = SecondaryPurple)
+                    Text("Clear Cache", fontSize = 13.sp, color = MFColors.Secondary)
                 }
                 OutlinedButton(
                     onClick = onDeleteAllDownloads,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorRed)
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MFColors.Error)
                 ) {
-                    Text("Delete Downloads", fontSize = 13.sp, color = ErrorRed)
+                    Text("Delete Downloads", fontSize = 13.sp, color = MFColors.Error)
                 }
             }
         }
@@ -796,12 +775,12 @@ private fun StorageRow(label: String, size: String, color: Color) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 5.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -810,9 +789,9 @@ private fun StorageRow(label: String, size: String, color: Color) {
                     .clip(CircleShape)
                     .background(color)
             )
-            Text(text = label, fontSize = 14.sp, color = OnBackgroundVariant)
+            Text(text = label, fontSize = 14.sp, color = MFColors.TextSecondary)
         }
-        Text(text = size, fontSize = 14.sp, color = OnBackground, fontWeight = FontWeight.Medium)
+        Text(text = size, fontSize = 14.sp, color = MFColors.TextPrimary, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -828,46 +807,47 @@ private fun DownloadSettingsCard(
     onSmartDownloadsChange: (Boolean) -> Unit
 ) {
     val qualities = listOf("Low", "Medium", "High", "Lossless")
-    Card(
+    MFGlass.GlassPanel(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = DarkSurface),
-        shape = RoundedCornerShape(16.dp)
+        cornerRadius = MFTokens.MediumRadius,
+        alpha = 0.08f,
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Text(
                 text = "Download Settings",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = OnBackground
+                color = MFColors.TextPrimary
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            Text("Download Quality", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = OnBackgroundVariant)
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Download Quality", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MFColors.TextSecondary)
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 qualities.forEach { quality ->
                     val selected = quality == downloadQuality
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (selected) AccentGreen else DarkSurfaceVariant)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (selected) MFColors.Accent else MFColors.GlassMid)
+                            .border(width = 0.5.dp, color = if (selected) MFColors.Accent.copy(alpha = 0.3f) else MFColors.GlassBorder, shape = RoundedCornerShape(10.dp))
                             .clickable { onQualityChange(quality) }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
                     ) {
                         Text(
                             text = quality,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            color = if (selected) OnAccent else OnBackgroundVariant
+                            color = if (selected) MFColors.TextOnAccent else MFColors.TextSecondary
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = Divider)
+            Spacer(modifier = Modifier.height(18.dp))
+            HorizontalDivider(color = MFColors.Divider)
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             SettingToggle("Download using Wi-Fi only", "Save mobile data", wifiOnly, onWifiOnlyChange)
             SettingToggle("Auto Download Liked Songs", "Download songs when you like them", autoDownloadLiked, onAutoDownloadChange)
             SettingToggle("Smart Downloads", "Automatically download recommended music", smartDownloads, onSmartDownloadsChange)
@@ -878,22 +858,22 @@ private fun DownloadSettingsCard(
 @Composable
 private fun SettingToggle(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = OnBackground)
-            Text(text = subtitle, fontSize = 12.sp, color = OnBackgroundVariant)
+            Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MFColors.TextPrimary)
+            Text(text = subtitle, fontSize = 12.sp, color = MFColors.TextTertiary)
         }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = OnAccent,
-                checkedTrackColor = AccentGreen,
-                uncheckedThumbColor = OnBackgroundVariant,
-                uncheckedTrackColor = DarkSurfaceVariant
+                checkedThumbColor = MFColors.TextOnAccent,
+                checkedTrackColor = MFColors.Accent,
+                uncheckedThumbColor = MFColors.TextTertiary,
+                uncheckedTrackColor = MFColors.GlassMid
             )
         )
     }
@@ -905,57 +885,48 @@ private fun EmptyDownloadsState(onBrowseMusic: () -> Unit) {
         modifier = Modifier.fillMaxWidth().padding(vertical = 60.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            modifier = Modifier
-                .size(120.dp)
-                .clip(CircleShape)
-                .background(DarkSurfaceVariant),
-            contentAlignment = Alignment.Center
+        MFGlass.GlassPanel(
+            modifier = Modifier.size(120.dp),
+            cornerRadius = RoundedCornerShape(100.dp),
+            alpha = 0.08f,
         ) {
-            Icon(
-                imageVector = Icons.Filled.FileDownload,
-                contentDescription = null,
-                tint = OnBackgroundVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(56.dp)
-            )
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Filled.FileDownload,
+                    contentDescription = null,
+                    tint = MFColors.TextTertiary.copy(alpha = 0.5f),
+                    modifier = Modifier.size(56.dp)
+                )
+            }
         }
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = "No downloaded music",
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            color = OnBackground
+            color = MFColors.TextPrimary
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "Download songs to listen offline.",
             fontSize = 14.sp,
-            color = OnBackgroundVariant,
+            color = MFColors.TextSecondary,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(26.dp))
         Button(
             onClick = onBrowseMusic,
             shape = RoundedCornerShape(25.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = AccentGreen),
+            colors = ButtonDefaults.buttonColors(containerColor = MFColors.Accent),
             contentPadding = PaddingValues(horizontal = 32.dp, vertical = 12.dp)
         ) {
             Text(
                 text = "Browse Music",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = OnAccent
+                color = MFColors.TextOnAccent
             )
         }
     }
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────
-
-private fun formatFileSize(bytes: Long): String {
-    return when {
-        bytes < 1024 -> "$bytes B"
-        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
-        else -> "${"%.1f".format(bytes / (1024.0 * 1024.0))} MB"
-    }
-}

@@ -48,12 +48,7 @@ import coil.request.ImageRequest
 import com.musicflow.app.data.remote.AlbumInfo
 import com.musicflow.app.data.remote.ArtistPage
 import com.musicflow.app.data.remote.SearchResult
-import com.musicflow.app.ui.theme.AccentGreen
-import com.musicflow.app.ui.theme.Black
-import com.musicflow.app.ui.theme.DarkSurface
-import com.musicflow.app.ui.theme.DarkSurfaceVariant
-import com.musicflow.app.ui.theme.OnBackground
-import com.musicflow.app.ui.theme.OnBackgroundVariant
+import com.musicflow.app.ui.theme.MFColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,7 +66,7 @@ fun ArtistScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Black),
+            .background(MFColors.Background),
     ) {
         TopAppBar(
             title = { },
@@ -80,7 +75,7 @@ fun ArtistScreen(
                     Icon(
                         imageVector = Icons.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = OnBackground,
+                        tint = MFColors.TextPrimary,
                     )
                 }
             },
@@ -95,7 +90,7 @@ fun ArtistScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator(color = AccentGreen)
+                    CircularProgressIndicator(color = MFColors.Accent)
                 }
             }
             error != null -> {
@@ -106,13 +101,13 @@ fun ArtistScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = error,
-                            color = OnBackgroundVariant,
+                            color = MFColors.TextSecondary,
                             style = MaterialTheme.typography.bodyLarge,
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = "Tap to retry",
-                            color = AccentGreen,
+                            color = MFColors.Accent,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.clickable(onClick = onRetry),
@@ -174,7 +169,7 @@ fun ArtistScreen(
                                 Text(
                                     text = "No content available",
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = OnBackgroundVariant,
+                                    color = MFColors.TextSecondary,
                                 )
                             }
                         }
@@ -202,7 +197,7 @@ private fun ArtistHeader(artist: ArtistPage) {
             modifier = Modifier
                 .size(160.dp)
                 .clip(CircleShape)
-                .background(DarkSurfaceVariant),
+                .background(MFColors.GlassMid),
             contentAlignment = Alignment.Center,
         ) {
             if (artist.thumbnailUrl.isNotBlank()) {
@@ -219,7 +214,7 @@ private fun ArtistHeader(artist: ArtistPage) {
                 Icon(
                     imageVector = Icons.Filled.MusicNote,
                     contentDescription = null,
-                    tint = OnBackgroundVariant,
+                    tint = MFColors.TextSecondary,
                     modifier = Modifier.size(48.dp),
                 )
             }
@@ -231,7 +226,7 @@ private fun ArtistHeader(artist: ArtistPage) {
             text = artist.name,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = OnBackground,
+            color = MFColors.TextPrimary,
         )
 
         if (!artist.description.isNullOrBlank()) {
@@ -239,7 +234,7 @@ private fun ArtistHeader(artist: ArtistPage) {
             Text(
                 text = artist.description,
                 style = MaterialTheme.typography.bodyMedium,
-                color = OnBackgroundVariant,
+                color = MFColors.TextSecondary,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -253,7 +248,7 @@ private fun SectionHeader(title: String) {
         text = title,
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
-        color = OnBackground,
+        color = MFColors.TextPrimary,
         modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
     )
 }
@@ -276,7 +271,7 @@ private fun ArtistTrackItem(
         Text(
             text = "$index",
             style = MaterialTheme.typography.bodyMedium,
-            color = OnBackgroundVariant,
+            color = MFColors.TextSecondary,
             modifier = Modifier.width(28.dp),
         )
 
@@ -284,7 +279,7 @@ private fun ArtistTrackItem(
             modifier = Modifier
                 .size(48.dp)
                 .clip(RoundedCornerShape(6.dp))
-                .background(DarkSurfaceVariant),
+                .background(MFColors.GlassMid),
             contentAlignment = Alignment.Center,
         ) {
             if (track.thumbnailUrl.isNotBlank()) {
@@ -301,7 +296,7 @@ private fun ArtistTrackItem(
                 Icon(
                     imageVector = Icons.Filled.MusicNote,
                     contentDescription = null,
-                    tint = OnBackgroundVariant,
+                    tint = MFColors.TextSecondary,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -313,14 +308,14 @@ private fun ArtistTrackItem(
             Text(
                 text = track.title,
                 style = MaterialTheme.typography.bodyLarge,
-                color = OnBackground,
+                color = MFColors.TextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = track.artist,
                 style = MaterialTheme.typography.bodySmall,
-                color = OnBackgroundVariant,
+                color = MFColors.TextSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -346,7 +341,7 @@ private fun AlbumItem(
             modifier = Modifier
                 .size(56.dp)
                 .clip(RoundedCornerShape(6.dp))
-                .background(DarkSurfaceVariant),
+                .background(MFColors.GlassMid),
             contentAlignment = Alignment.Center,
         ) {
             if (album.thumbnailUrl.isNotBlank()) {
@@ -363,7 +358,7 @@ private fun AlbumItem(
                 Icon(
                     imageVector = Icons.Filled.MusicNote,
                     contentDescription = null,
-                    tint = OnBackgroundVariant,
+                    tint = MFColors.TextSecondary,
                     modifier = Modifier.size(24.dp),
                 )
             }
@@ -375,14 +370,14 @@ private fun AlbumItem(
             Text(
                 text = album.title,
                 style = MaterialTheme.typography.bodyLarge,
-                color = OnBackground,
+                color = MFColors.TextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = album.artist,
                 style = MaterialTheme.typography.bodySmall,
-                color = OnBackgroundVariant,
+                color = MFColors.TextSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

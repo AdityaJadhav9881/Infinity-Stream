@@ -11,4 +11,8 @@ data class QueueEntity(
     val artist: String,
     val artworkUrl: String,
     val streamingUrl: String,
+    val currentItemIndex: Int = 0,
+    val playbackPositionMs: Long = 0L,
+    val isShuffleOn: Boolean = false,
+    val repeatMode: Int = 0,
 )

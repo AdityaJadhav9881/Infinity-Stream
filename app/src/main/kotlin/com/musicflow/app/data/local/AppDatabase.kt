@@ -63,8 +63,8 @@ import com.musicflow.app.data.local.entity.TrackEntity
         OfflineTrackEntity::class,
         DownloadQueueEntity::class,
     ],
-    version = 7,
-    exportSchema = false,
+    version = 9,
+    exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
 

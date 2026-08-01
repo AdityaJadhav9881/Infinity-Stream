@@ -12,6 +12,12 @@ import androidx.work.WorkManager
 import android.os.Environment
 import com.musicflow.app.data.local.AppDatabase
 import com.musicflow.app.data.local.LocalBackupManager
+import com.musicflow.app.data.remote.InfinityMasterClient
+import com.musicflow.app.utils.CrashReporter
+import com.musicflow.app.utils.DeviceIdProvider
+import com.musicflow.app.utils.RemoteConfigManager
+import com.musicflow.app.utils.TelemetryTracker
+import com.musicflow.app.utils.UpdateChecker
 import com.musicflow.app.worker.MediaStoreReconciliationWorker
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLException
@@ -54,6 +60,24 @@ class MusicFlowApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var database: AppDatabase
 
+    @Inject
+    lateinit var crashReporter: CrashReporter
+
+    @Inject
+    lateinit var telemetryTracker: TelemetryTracker
+
+    @Inject
+    lateinit var updateChecker: UpdateChecker
+
+    @Inject
+    lateinit var remoteConfigManager: RemoteConfigManager
+
+    @Inject
+    lateinit var deviceIdProvider: DeviceIdProvider
+
+    @Inject
+    lateinit var infinityMasterClient: InfinityMasterClient
+
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var lastResumeTime = 0L
 
@@ -73,6 +97,38 @@ class MusicFlowApplication : Application(), Configuration.Provider {
 
         initializeYoutubeDL()
         enqueueMediaStoreReconciliation()
+
+        // Infinity Master integration — silent, automatic
+        crashReporter.install()
+        applicationScope.launch {
+            try {
+                // Check local disabled state FIRST — blocks immediately if previously disabled
+                val locallyDisabled = deviceIdProvider.isDeviceDisabled()
+                if (locallyDisabled) {
+                    Log.w("MusicFlowApp", "Device locally disabled, blocking access")
+                    return@launch
+                }
+
+                // Then check server — if admin disabled, store locally and block
+                val remotelyDisabled = infinityMasterClient.checkDeviceStatus().getOrNull() ?: false
+                if (!remotelyDisabled) {
+                    infinityMasterClient.registerDevice()
+                    telemetryTracker.trackAppLaunch()
+                    updateChecker.checkOnStartup()
+                    remoteConfigManager.fetchOnStartup()
+                } else {
+                    Log.w("MusicFlowApp", "Device disabled by admin, skipping integration")
+                }
+            } catch (e: Exception) {
+                // Network failed — check if locally disabled, if so block
+                val locallyDisabled = deviceIdProvider.isDeviceDisabled()
+                if (locallyDisabled) {
+                    Log.w("MusicFlowApp", "Network failed but device locally disabled, blocking")
+                    return@launch
+                }
+                Log.w("MusicFlowApp", "Infinity Master init failed: ${e.message}")
+            }
+        }
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
             override fun onActivityStarted(activity: Activity) {}

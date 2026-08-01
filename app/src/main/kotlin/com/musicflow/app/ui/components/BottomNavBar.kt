@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,7 +23,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -34,16 +32,6 @@ import com.musicflow.app.ui.theme.MFColors
 import com.musicflow.app.ui.theme.MFGlass
 import com.musicflow.app.ui.theme.MFTokens
 
-/**
- * Premium Floating Bottom Navigation Bar
- *
- * Design:
- * - Floating glass background
- * - NO pill/indicator behind active tab
- * - Active: glowing emerald icon + green label + subtle scale
- * - Inactive: gray icon + gray label
- * - Lightweight, elegant, airy
- */
 @Composable
 fun MusicFlowBottomNavBar(
     currentRoute: String?,
@@ -53,12 +41,12 @@ fun MusicFlowBottomNavBar(
     MFGlass.BottomNavGlass(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = 24.dp, vertical = 6.dp),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .padding(horizontal = 10.dp, vertical = 2.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -84,7 +72,7 @@ private fun NavBarItem(
     modifier: Modifier = Modifier,
 ) {
     val iconColor by animateColorAsState(
-        targetValue = if (isSelected) MFColors.Accent else MFColors.TextTertiary.copy(alpha = 0.6f),
+        targetValue = if (isSelected) MFColors.Accent else MFColors.TextTertiary.copy(alpha = 0.5f),
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium,
@@ -93,7 +81,7 @@ private fun NavBarItem(
     )
 
     val textColor by animateColorAsState(
-        targetValue = if (isSelected) MFColors.Accent else MFColors.TextTertiary.copy(alpha = 0.6f),
+        targetValue = if (isSelected) MFColors.Accent else MFColors.TextTertiary.copy(alpha = 0.5f),
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium,
@@ -102,7 +90,7 @@ private fun NavBarItem(
     )
 
     val iconScale by animateFloatAsState(
-        targetValue = if (isSelected) 1.1f else 1f,
+        targetValue = if (isSelected) 1.12f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessHigh,
@@ -112,13 +100,13 @@ private fun NavBarItem(
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
             )
-            .padding(vertical = 10.dp),
+            .padding(vertical = 4.dp),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -126,13 +114,12 @@ private fun NavBarItem(
             verticalArrangement = Arrangement.Center,
         ) {
             Box(contentAlignment = Alignment.Center) {
-                // Subtle glow behind active icon
                 if (isSelected) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MFColors.Accent.copy(alpha = 0.08f))
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MFColors.Accent.copy(alpha = 0.12f))
                     )
                 }
                 Icon(
@@ -149,10 +136,10 @@ private fun NavBarItem(
             }
             Text(
                 text = screen.label,
-                fontSize = 10.sp,
+                fontSize = 9.sp,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                 color = textColor,
-                modifier = Modifier.padding(top = 4.dp),
+                modifier = Modifier.padding(top = 2.dp),
             )
         }
     }

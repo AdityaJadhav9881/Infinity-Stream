@@ -32,6 +32,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
@@ -365,6 +366,17 @@ class MusicPlaybackService : MediaSessionService() {
 
         override fun onPlayerError(error: PlaybackException) {
             Log.e(TAG, "Playback error: ${error.errorCodeName}", error)
+            val player = exoPlayer ?: return
+            // Skip to next track on error — never let playback stop on a bad track
+            if (player.hasNextMediaItem()) {
+                Log.w(TAG, "Skipping to next track after error")
+                player.seekToNext()
+                player.prepare()
+                player.play()
+            } else {
+                Log.w(TAG, "No next track available — stopping playback")
+                player.stop()
+            }
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -390,6 +402,7 @@ class MusicPlaybackService : MediaSessionService() {
     // ── Resource Cleanup ──────────────────────────────────────────────────
 
     private fun releaseResources() {
+        serviceScope.cancel()
         equalizerManager.release()
         mediaSession?.run {
             player.release()

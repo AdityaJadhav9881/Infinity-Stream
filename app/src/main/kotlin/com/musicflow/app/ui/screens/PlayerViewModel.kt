@@ -71,6 +71,8 @@ class PlayerViewModel @Inject constructor(
     private var mediaController: MediaController? = null
     private var progressJob: kotlinx.coroutines.Job? = null
     private var upNextJob: kotlinx.coroutines.Job? = null
+    private var offlineJob: kotlinx.coroutines.Job? = null
+    private var sleepTimerJob: kotlinx.coroutines.Job? = null
 
     /** True when we are actively filling the queue for the current seed track. */
     private var isFillingQueue = false
@@ -101,15 +103,18 @@ class PlayerViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        saveCurrentQueue()
         progressJob?.cancel()
         upNextJob?.cancel()
+        sleepTimerJob?.cancel()
         disconnectFromService()
     }
 
     fun startSleepTimer(minutes: Int) {
+        sleepTimerJob?.cancel()
         sleepTimerManager.startMinutes(minutes)
         _uiState.update { it.copy(isSleepTimerRunning = true) }
-        viewModelScope.launch {
+        sleepTimerJob = viewModelScope.launch {
             sleepTimerManager.remainingTimeMs.collect { remaining ->
                 _uiState.update { it.copy(sleepTimerRemaining = remaining) }
                 if (remaining == null || remaining <= 0L) {
@@ -120,6 +125,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
         sleepTimerManager.cancel()
         _uiState.update { it.copy(isSleepTimerRunning = false, sleepTimerRemaining = null) }
     }
@@ -414,6 +420,7 @@ class PlayerViewModel @Inject constructor(
         }
 
         Log.i(TAG, "playTrack: ${track.title}")
+        _uiState.update { it.copy(playbackStatus = PlaybackStatus.PREPARING) }
         MusicPlaybackService.currentSongId = track.videoId
 
         val metadata = TrackMetadata(
@@ -440,14 +447,29 @@ class PlayerViewModel @Inject constructor(
 
     /**
      * Adds a track to play next (after the current track).
-     * Requires network unless track is downloaded.
+     * Offline-first: if the track is downloaded, adds it as an offline item.
      */
     fun playNext(track: SearchResult) {
         viewModelScope.launch {
+            val isOffline = offlineDownloadManager.isTrackOffline(track.videoId)
+            if (isOffline) {
+                val localPath = getLocalPathForTrack(track.videoId)
+                if (localPath != null) {
+                    val item = buildOfflineMediaItem(track.videoId, track.title, track.artist, track.thumbnailUrl, localPath)
+                    val controller = mediaController ?: return@launch
+                    val insertIndex = controller.currentMediaItemIndex + 1
+                    controller.addMediaItem(insertIndex, item)
+                    Log.i(TAG, "playNext (offline): ${track.title}")
+                    return@launch
+                }
+            }
+
             if (!networkMonitor.isOnline.value) {
-                Log.w(TAG, "playNext: offline — cannot add to queue")
+                Log.w(TAG, "playNext: offline and track not downloaded: ${track.title}")
+                _uiState.update { it.copy(downloadError = "Track not downloaded. Download it to play offline.") }
                 return@launch
             }
+            _uiState.update { it.copy(playbackStatus = PlaybackStatus.EXTRACTING) }
             try {
                 val result = searchRepository.extractAudioWithHeaders(track.videoId)
                 AudioHeaderStore.put(track.videoId, result.headers)
@@ -473,14 +495,28 @@ class PlayerViewModel @Inject constructor(
 
     /**
      * Adds a track to the end of the queue.
-     * Requires network unless track is downloaded.
+     * Offline-first: if the track is downloaded, adds it as an offline item.
      */
     fun enqueue(track: SearchResult) {
         viewModelScope.launch {
+            val isOffline = offlineDownloadManager.isTrackOffline(track.videoId)
+            if (isOffline) {
+                val localPath = getLocalPathForTrack(track.videoId)
+                if (localPath != null) {
+                    val item = buildOfflineMediaItem(track.videoId, track.title, track.artist, track.thumbnailUrl, localPath)
+                    val controller = mediaController ?: return@launch
+                    controller.addMediaItem(controller.mediaItemCount, item)
+                    Log.i(TAG, "enqueue (offline): ${track.title}")
+                    return@launch
+                }
+            }
+
             if (!networkMonitor.isOnline.value) {
-                Log.w(TAG, "enqueue: offline — cannot add to queue")
+                Log.w(TAG, "enqueue: offline and track not downloaded: ${track.title}")
+                _uiState.update { it.copy(downloadError = "Track not downloaded. Download it to play offline.") }
                 return@launch
             }
+            _uiState.update { it.copy(playbackStatus = PlaybackStatus.EXTRACTING) }
             try {
                 val result = searchRepository.extractAudioWithHeaders(track.videoId)
                 AudioHeaderStore.put(track.videoId, result.headers)
@@ -530,6 +566,7 @@ class PlayerViewModel @Inject constructor(
                 return@launch
             }
 
+            _uiState.update { it.copy(playbackStatus = PlaybackStatus.EXTRACTING) }
             try {
                 val result = searchRepository.extractAudioWithHeaders(songId)
                 AudioHeaderStore.put(songId, result.headers)
@@ -559,6 +596,7 @@ class PlayerViewModel @Inject constructor(
 
     /**
      * Plays a track from a local offline file.
+     * Also fills the queue with all other offline tracks so playback continues after the current track.
      */
     fun playOfflineTrack(songId: String, title: String, artist: String, artworkUrl: String, localFilePath: String) {
         val controller = mediaController ?: run {
@@ -569,30 +607,65 @@ class PlayerViewModel @Inject constructor(
         Log.i(TAG, "playOfflineTrack: $title from $localFilePath")
         MusicPlaybackService.currentSongId = songId
 
-        val fileUri = android.net.Uri.fromFile(java.io.File(localFilePath))
-        val mediaMetadata = androidx.media3.common.MediaMetadata.Builder()
-            .setTitle(title)
-            .setArtist(artist)
-            .setArtworkUri(android.net.Uri.parse(artworkUrl))
-            .setIsBrowsable(false)
-            .setIsPlayable(true)
-            .build()
+        val mediaItem = buildOfflineMediaItem(songId, title, artist, artworkUrl, localFilePath)
 
-        val requestMetadata = androidx.media3.common.MediaItem.RequestMetadata.Builder()
-            .setMediaUri(fileUri)
-            .build()
-
-        val mediaItem = androidx.media3.common.MediaItem.Builder()
-            .setMediaId(songId)
-            .setUri(fileUri)
-            .setCustomCacheKey(songId)
-            .setMediaMetadata(mediaMetadata)
-            .setRequestMetadata(requestMetadata)
-            .build()
-
+        // Start playback immediately with the selected track
         controller.setMediaItems(listOf(mediaItem))
         controller.prepare()
         controller.play()
+
+        // Save to library
+        saveTrackToLibrary(TrackMetadata(songId, title, artist, artworkUrl, ""))
+
+        // Async: fill queue with other offline tracks so playback continues
+        fillOfflineQueue(songId)
+
+        // Save queue to database
+        saveCurrentQueue()
+    }
+
+    /**
+     * Fills the ExoPlayer queue with all other offline/downloaded tracks.
+     * Called when playing offline — since fillQueue() cannot fetch from YouTube without internet.
+     */
+    private fun fillOfflineQueue(excludeSongId: String) {
+        offlineJob?.cancel()
+        isFillingQueue = true
+
+        offlineJob = viewModelScope.launch {
+            try {
+                val allOffline = offlineDownloadManager.getOfflineTracks().first()
+                    .filter { it.songId != excludeSongId }
+
+                if (allOffline.isEmpty()) {
+                    Log.i(TAG, "fillOfflineQueue: no other offline tracks")
+                    return@launch
+                }
+
+                val ctrl = mediaController ?: return@launch
+                var added = 0
+                for (track in allOffline) {
+                    try {
+                        val file = java.io.File(track.localFilePath)
+                        if (!file.exists()) continue
+                        val item = buildOfflineMediaItem(
+                            track.songId, track.title, track.artist, track.artworkUrl, track.localFilePath,
+                        )
+                        ctrl.addMediaItem(ctrl.mediaItemCount, item)
+                        added++
+                    } catch (e: Exception) {
+                        Log.e(TAG, "fillOfflineQueue: failed ${track.songId}: ${e.message}")
+                    }
+                }
+
+                Log.i(TAG, "fillOfflineQueue: added $added offline tracks (queue: ${ctrl.mediaItemCount})")
+                saveCurrentQueue()
+            } catch (e: Exception) {
+                Log.e(TAG, "fillOfflineQueue failed: ${e.message}", e)
+            } finally {
+                isFillingQueue = false
+            }
+        }
     }
 
     /**
@@ -611,10 +684,11 @@ class PlayerViewModel @Inject constructor(
                 return@launch
             }
 
+            _uiState.update { it.copy(playbackStatus = PlaybackStatus.EXTRACTING) }
             MusicPlaybackService.currentSongId = songId
             val mediaItems = mutableListOf<MediaItem>()
 
-            // Add selected track first
+            // Add selected track first (synchronous — must play immediately)
             val selectedTrack = allPlaylistTracks[startIndex]
             val isOffline = offlineDownloadManager.isTrackOffline(songId)
             if (isOffline) {
@@ -639,43 +713,37 @@ class PlayerViewModel @Inject constructor(
                 }
             }
 
-            // Add remaining tracks from the playlist (after the selected one)
-            val remainingTracks = allPlaylistTracks.drop(startIndex + 1)
-            for (track in remainingTracks) {
-                val isTrackOffline = offlineDownloadManager.isTrackOffline(track.songId)
-                if (isTrackOffline) {
-                    val localPath = getLocalPathForTrack(track.songId)
-                    if (localPath != null) {
-                        mediaItems.add(buildOfflineMediaItem(track.songId, track.title, track.artist, track.artworkUrl, localPath))
-                    }
-                } else {
-                    try {
-                        val result = searchRepository.extractAudioWithHeaders(track.songId)
-                        AudioHeaderStore.put(track.songId, result.headers)
-                        mediaItems.add(TrackMetadata(track.songId, track.title, track.artist, track.artworkUrl, result.url).toMediaItem())
-                    } catch (e: Exception) {
-                        Log.w(TAG, "playFromPlaylistContext: skip ${track.songId}: ${e.message}")
+            // Collect remaining tracks + before tracks, extract in parallel
+            val allOtherTracks = allPlaylistTracks.drop(startIndex + 1) + allPlaylistTracks.take(startIndex)
+            val semaphore = Semaphore(PARALLEL_EXTRACTORS)
+            val deferreds = allOtherTracks.map { track ->
+                async(Dispatchers.IO) {
+                    semaphore.withPermit {
+                        val isTrackOffline = offlineDownloadManager.isTrackOffline(track.songId)
+                        if (isTrackOffline) {
+                            val localPath = getLocalPathForTrack(track.songId)
+                            if (localPath != null) {
+                                buildOfflineMediaItem(track.songId, track.title, track.artist, track.artworkUrl, localPath)
+                            } else null
+                        } else {
+                            try {
+                                val result = searchRepository.extractAudioWithHeaders(track.songId)
+                                AudioHeaderStore.put(track.songId, result.headers)
+                                TrackMetadata(track.songId, track.title, track.artist, track.artworkUrl, result.url).toMediaItem()
+                            } catch (e: Exception) {
+                                Log.w(TAG, "playFromPlaylistContext: skip ${track.songId}: ${e.message}")
+                                null
+                            }
+                        }
                     }
                 }
             }
 
-            // Add tracks from before the selected one (wrap around)
-            val beforeTracks = allPlaylistTracks.take(startIndex)
-            for (track in beforeTracks) {
-                val isTrackOffline = offlineDownloadManager.isTrackOffline(track.songId)
-                if (isTrackOffline) {
-                    val localPath = getLocalPathForTrack(track.songId)
-                    if (localPath != null) {
-                        mediaItems.add(buildOfflineMediaItem(track.songId, track.title, track.artist, track.artworkUrl, localPath))
-                    }
-                } else {
-                    try {
-                        val result = searchRepository.extractAudioWithHeaders(track.songId)
-                        AudioHeaderStore.put(track.songId, result.headers)
-                        mediaItems.add(TrackMetadata(track.songId, track.title, track.artist, track.artworkUrl, result.url).toMediaItem())
-                    } catch (e: Exception) {
-                        Log.w(TAG, "playFromPlaylistContext: skip ${track.songId}: ${e.message}")
-                    }
+            // Collect parallel results in order
+            for (deferred in deferreds) {
+                val item = deferred.await()
+                if (item != null) {
+                    mediaItems.add(item)
                 }
             }
 
@@ -819,7 +887,7 @@ class PlayerViewModel @Inject constructor(
 
     /**
      * Loads tracks from a playlist and plays them as a queue.
-     * If playlist is empty, does nothing (caller should show toast).
+     * Offline-first: downloaded tracks play from local file, online tracks use network stream.
      */
     fun playPlaylistQueue(playlistId: Long) {
         viewModelScope.launch {
@@ -833,23 +901,50 @@ class PlayerViewModel @Inject constructor(
                 Log.i(TAG, "playPlaylistQueue: loading ${playlistTracks.size} tracks from playlist $playlistId")
 
                 val controller = mediaController ?: return@launch
+                val isOnline = networkMonitor.isOnline.value
+                _uiState.update { it.copy(playbackStatus = PlaybackStatus.EXTRACTING) }
 
-                val mediaItems = playlistTracks.map { track ->
-                    TrackMetadata(
-                        songId = track.songId,
-                        title = track.title,
-                        artist = track.artist,
-                        artworkUrl = track.artworkUrl,
-                        resolvedStreamingUrl = "",
-                    ).toMediaItem()
+                // Extract all tracks in parallel
+                val semaphore = Semaphore(PARALLEL_EXTRACTORS)
+                val deferreds = playlistTracks.map { track ->
+                    async(Dispatchers.IO) {
+                        semaphore.withPermit {
+                            val isOffline = offlineDownloadManager.isTrackOffline(track.songId)
+                            if (isOffline) {
+                                val localPath = getLocalPathForTrack(track.songId)
+                                if (localPath != null) {
+                                    buildOfflineMediaItem(track.songId, track.title, track.artist, track.artworkUrl, localPath)
+                                } else null
+                            } else if (isOnline) {
+                                try {
+                                    val result = searchRepository.extractAudioWithHeaders(track.songId)
+                                    AudioHeaderStore.put(track.songId, result.headers)
+                                    TrackMetadata(track.songId, track.title, track.artist, track.artworkUrl, result.url).toMediaItem()
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "playPlaylistQueue: skip ${track.songId}: ${e.message}")
+                                    null
+                                }
+                            } else null
+                        }
+                    }
+                }
+
+                val mediaItems = deferreds.mapNotNull { it.await() }
+
+                if (mediaItems.isEmpty()) {
+                    Log.w(TAG, "playPlaylistQueue: no playable tracks")
+                    return@launch
                 }
 
                 controller.setMediaItems(mediaItems)
                 controller.prepare()
                 controller.play()
 
+                // Set current song ID to first track
+                MusicPlaybackService.currentSongId = playlistTracks.first().songId
+
                 saveCurrentQueue()
-                Log.i(TAG, "playPlaylistQueue: playing ${playlistTracks.size} tracks")
+                Log.i(TAG, "playPlaylistQueue: playing ${mediaItems.size} tracks")
             } catch (e: Exception) {
                 Log.e(TAG, "playPlaylistQueue failed: ${e.message}", e)
             }
@@ -1000,13 +1095,14 @@ class PlayerViewModel @Inject constructor(
         isFillingQueue = true
 
         if (!networkMonitor.isOnline.value) {
-            Log.i(TAG, "fillQueue: offline — skipping queue fill")
-            isFillingQueue = false
+            Log.i(TAG, "fillQueue: offline — filling from local downloads")
+            fillOfflineQueue(seedVideoId)
             return
         }
 
         upNextJob = viewModelScope.launch {
             try {
+                _uiState.update { it.copy(playbackStatus = PlaybackStatus.FILLING_QUEUE) }
                 Log.i(TAG, "fillQueue: fetching Up Next for $seedVideoId")
                 val similarTracks = searchRepository.getUpNext(seedVideoId)
 
@@ -1126,14 +1222,60 @@ class PlayerViewModel @Inject constructor(
     private fun restoreQueueFromDatabase() {
         viewModelScope.launch {
             try {
-                val restoredQueue = queuePersistenceManager.restoreQueue()
-                if (restoredQueue.isNotEmpty()) {
-                    val controller = mediaController ?: return@launch
-                    val mediaItems = restoredQueue.map { it.toMediaItem() }
-                    controller.setMediaItems(mediaItems)
-                    controller.prepare()
-                    Log.i(TAG, "Restored ${restoredQueue.size} tracks from database")
+                val restoredState = queuePersistenceManager.restoreQueue()
+                if (restoredState.tracks.isEmpty()) return@launch
+
+                val controller = mediaController ?: return@launch
+                val isOnline = networkMonitor.isOnline.value
+
+                _uiState.update { it.copy(playbackStatus = PlaybackStatus.RESTORING) }
+                Log.i(TAG, "Restoring queue: ${restoredState.tracks.size} tracks, index=${restoredState.currentItemIndex}, pos=${restoredState.playbackPositionMs}ms")
+
+                // Re-extract audio URLs for online tracks (stale URL fix)
+                val mediaItems = if (isOnline) {
+                    val semaphore = Semaphore(PARALLEL_EXTRACTORS)
+                    val deferreds = restoredState.tracks.map { track ->
+                        async(Dispatchers.IO) {
+                            semaphore.withPermit {
+                                try {
+                                    val result = searchRepository.extractAudioWithHeaders(track.songId)
+                                    AudioHeaderStore.put(track.songId, result.headers)
+                                    track.copy(resolvedStreamingUrl = result.url)
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Re-extraction failed for ${track.songId}: ${e.message}")
+                                    null
+                                }
+                            }
+                        }
+                    }
+                    deferreds.mapNotNull { it.await() }
+                } else {
+                    // Offline: keep stored URLs (they point to local files)
+                    restoredState.tracks
                 }
+
+                if (mediaItems.isEmpty()) {
+                    Log.w(TAG, "No playable tracks after re-extraction")
+                    return@launch
+                }
+
+                // Clamp current index to valid range
+                val targetIndex = restoredState.currentItemIndex.coerceIn(0, mediaItems.size - 1)
+
+                val mediaItemObjects = mediaItems.map { it.toMediaItem() }
+                controller.setMediaItems(mediaItemObjects)
+                controller.prepare()
+
+                // Seek to the saved position within the saved track
+                if (restoredState.playbackPositionMs > 0) {
+                    controller.seekTo(targetIndex, restoredState.playbackPositionMs)
+                }
+
+                // Restore shuffle/repeat modes
+                controller.shuffleModeEnabled = restoredState.isShuffleOn
+                controller.repeatMode = restoredState.repeatMode
+
+                Log.i(TAG, "Queue restored: ${mediaItems.size} tracks, seeking to index=$targetIndex, pos=${restoredState.playbackPositionMs}ms")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to restore queue: ${e.message}")
             }
@@ -1149,7 +1291,17 @@ class PlayerViewModel @Inject constructor(
                     val item = controller.getMediaItemAt(i)
                     TrackMetadata.fromMediaItem(item)?.let { tracks.add(it) }
                 }
-                queuePersistenceManager.saveQueue(tracks)
+                val currentIndex = controller.currentMediaItemIndex
+                val position = controller.currentPosition
+                val shuffleOn = controller.shuffleModeEnabled
+                val repeat = controller.repeatMode
+                queuePersistenceManager.saveQueue(
+                    items = tracks,
+                    currentItemIndex = currentIndex,
+                    playbackPositionMs = position,
+                    isShuffleOn = shuffleOn,
+                    repeatMode = repeat,
+                )
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to save queue: ${e.message}")
             }
@@ -1210,13 +1362,20 @@ class PlayerViewModel @Inject constructor(
     private inner class PlayerListener : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             updateStateFromController()
-            // Save position when paused
             if (!isPlaying) {
+                _uiState.update { it.copy(playbackStatus = PlaybackStatus.PAUSED) }
                 saveCurrentPlaybackPosition()
+            } else {
+                _uiState.update { it.copy(playbackStatus = PlaybackStatus.PLAYING) }
             }
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
+            when (playbackState) {
+                Player.STATE_BUFFERING -> _uiState.update { it.copy(playbackStatus = PlaybackStatus.BUFFERING) }
+                Player.STATE_READY -> _uiState.update { it.copy(playbackStatus = PlaybackStatus.PLAYING) }
+                Player.STATE_IDLE -> _uiState.update { it.copy(playbackStatus = PlaybackStatus.IDLE) }
+            }
             updateStateFromController()
         }
 
@@ -1249,6 +1408,28 @@ class PlayerViewModel @Inject constructor(
             if (id.isNotEmpty()) {
                 maybeRefillQueue(id)
             }
+
+            // Save queue state periodically (on track change)
+            saveCurrentQueue()
+        }
+
+        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+            Log.e(TAG, "Playback error: ${error.errorCodeName}", error)
+            _uiState.update { it.copy(playbackStatus = PlaybackStatus.ERROR) }
+            val controller = mediaController ?: return
+            // Skip to next track on error — never let playback stop
+            if (controller.hasNextMediaItem()) {
+                Log.w(TAG, "Skipping to next track after error")
+                _uiState.update { it.copy(playbackStatus = PlaybackStatus.BUFFERING) }
+                controller.seekToNext()
+                controller.prepare()
+                controller.play()
+            } else {
+                Log.w(TAG, "No next track — stopping playback")
+                controller.stop()
+            }
+            // Save queue state after error handling
+            saveCurrentQueue()
         }
 
         override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
@@ -1257,12 +1438,25 @@ class PlayerViewModel @Inject constructor(
     }
 }
 
+enum class PlaybackStatus(val label: String) {
+    IDLE(""),
+    EXTRACTING("Extracting audio..."),
+    PREPARING("Preparing..."),
+    BUFFERING("Buffering..."),
+    PLAYING(""),
+    PAUSED("Paused"),
+    RESTORING("Restoring queue..."),
+    FILLING_QUEUE("Loading similar tracks..."),
+    ERROR("Playback error"),
+}
+
 data class PlayerUiState(
     val isPlaying: Boolean = false,
     val currentPosition: Long = 0L,
     val duration: Long = 0L,
     val currentTrack: TrackMetadata? = null,
     val playbackState: Int = Player.STATE_IDLE,
+    val playbackStatus: PlaybackStatus = PlaybackStatus.IDLE,
     val queueSize: Int = 0,
     val upcomingTracks: List<TrackMetadata> = emptyList(),
     val isShuffleOn: Boolean = false,

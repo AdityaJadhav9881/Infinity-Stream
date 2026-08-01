@@ -209,8 +209,9 @@ class DownloadManager @Inject constructor(
                 val request = requestBuilder.build()
                 val response = client.newCall(request).execute()
 
-                if (!response.isSuccessful) {
-                    val reason = "HTTP ${response.code}"
+                response.use { resp ->
+                if (!resp.isSuccessful) {
+                    val reason = "HTTP ${resp.code}"
                     if (entity.retryCount < MAX_RETRIES) {
                         downloadQueueDao.retry(entity.songId)
                         Log.w(TAG, "Download failed ($reason), retrying: ${entity.title}")
@@ -221,7 +222,7 @@ class DownloadManager @Inject constructor(
                     return@launch
                 }
 
-                val body = response.body ?: run {
+                val body = resp.body ?: run {
                     downloadQueueDao.markFailed(entity.songId, "Empty response body")
                     processQueue()
                     return@launch
@@ -278,17 +279,19 @@ class DownloadManager @Inject constructor(
                         }
                     }
                 }
+                } // end response.use
 
                 // Download artwork
                 val artworkFile = File(publicMusicDir, "$safeName.jpg")
                 try {
                     if (entity.artworkUrl.isNotBlank() && entity.artworkUrl.startsWith("http")) {
                         val artRequest = Request.Builder().url(entity.artworkUrl).build()
-                        val artResponse = client.newCall(artRequest).execute()
-                        if (artResponse.isSuccessful) {
-                            artResponse.body?.byteStream()?.use { input ->
-                                FileOutputStream(artworkFile).use { output ->
-                                    input.copyTo(output)
+                        client.newCall(artRequest).execute().use { artResponse ->
+                            if (artResponse.isSuccessful) {
+                                artResponse.body?.byteStream()?.use { input ->
+                                    FileOutputStream(artworkFile).use { output ->
+                                        input.copyTo(output)
+                                    }
                                 }
                             }
                         }
@@ -335,10 +338,12 @@ class DownloadManager @Inject constructor(
      */
     fun pause(songId: String) {
         scope.launch {
-            downloadQueueDao.updateProgress(songId, "PAUSED", 0f)
+            val current = downloadQueueDao.getBySongId(songId)
+            val currentProgress = current?.progress ?: 0f
+            downloadQueueDao.updateProgress(songId, "PAUSED", currentProgress)
             activeJobs[songId]?.cancel()
             activeJobs.remove(songId)
-            Log.i(TAG, "Paused: $songId")
+            Log.i(TAG, "Paused: $songId (progress=${currentProgress})")
         }
     }
 
@@ -347,9 +352,11 @@ class DownloadManager @Inject constructor(
      */
     fun resume(songId: String) {
         scope.launch {
-            downloadQueueDao.updateProgress(songId, "QUEUED", 0f)
+            val current = downloadQueueDao.getBySongId(songId)
+            val currentProgress = current?.progress ?: 0f
+            downloadQueueDao.updateProgress(songId, "QUEUED", currentProgress)
             processQueue()
-            Log.i(TAG, "Resumed: $songId")
+            Log.i(TAG, "Resumed: $songId (progress=${currentProgress})")
         }
     }
 
