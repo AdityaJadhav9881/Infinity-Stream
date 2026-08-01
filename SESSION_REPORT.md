@@ -1,5 +1,5 @@
 # SESSION REPORT — MusicFlow Development
-## Date: July 13–14, 2026
+## Date: July 13 – August 1, 2026
 ## Status: All changes deployed, app running on device
 
 ---
@@ -318,3 +318,58 @@ HomeViewModel → observes SharedMusicState.recentlyPlayed, favoriteTracks, play
 | **AnimatedComponents.kt** | **New** (MFAnimations pressScale/glow/mfRipple) |
 | **DynamicColors.kt** | **New** (MFDynamicColors Palette extraction) |
 | **BottomNavBar.kt** | **New** (floating glass nav, no pill, glowing active icon) |
+
+---
+
+## SESSION 4 — August 1, 2026
+
+### 29. Smart Playback Status Engine
+**Files:** `PlayerViewModel.kt`, `MainPlayerScreen.kt`, `MainActivity.kt`
+- Added `PlaybackStatus` enum: IDLE, EXTRACTING, PREPARING, BUFFERING, PLAYING, PAUSED, RESTORING, FILLING_QUEUE, ERROR
+- Added `playbackStatus` field to `PlayerUiState`
+- Status updates fire at 11 key points: `playTrack()`, `playFromLibrary()`, `playNext()`, `enqueue()`, `playFromPlaylistContext()`, `playPlaylistQueue()`, `restoreQueueFromDatabase()`, `fillQueue()`, plus ExoPlayer listener callbacks (`onPlaybackStateChanged`, `onIsPlayingChanged`, `onPlayerError`)
+- Three dots on Now Playing screen redesigned with per-dot staggered animations (0ms, 200ms, 400ms offset)
+- Each state has unique animation: fast staggered for EXTRACTING, slow pulse for BUFFERING, gentle pulse for PLAYING
+- Status text shown below dots when loading/paused/error, hidden when playing
+- Red dots for errors, dim dots for paused state
+- Replaced old single `pulseAlpha` infinite transition with 3 independent `animateFloatAsState`
+
+### 30. Google Drive Download Fix
+**File:** `ApkInstaller.kt`
+- Replaced Android `DownloadManager` with direct OkHttp download
+- `DownloadManager` cannot handle Google Drive's virus-scan consent page — downloaded HTML instead of APK
+- OkHttp with `followRedirects(true)` and proper User-Agent handles Google Drive properly
+- Added APK file validation: rejects files <1KB or containing `<html>` (HTML error pages)
+- Removed `BroadcastReceiver`, `ContentObserver`, `Handler`, `Looper` imports — no longer needed
+- Removed `currentDownloadId` field — no longer tracking download IDs
+
+### 31. API Key Security Fix
+**File:** `InfinityMasterClient.kt`, `build.gradle.kts`
+- Moved hardcoded API key `im_sk_f1ffee81479b9f6f2fd181df1fcc5719cd1c1f83` to `BuildConfig.API_KEY`
+- Added `buildConfig = true` to `buildFeatures` in `build.gradle.kts`
+- Added `buildConfigField("String", "API_KEY", "...")` to `defaultConfig`
+- Updated `InfinityMasterClient.apiKeyHeader()` to use `BuildConfig.API_KEY`
+
+### 32. Hard Process Kill Removal
+**File:** `ApkInstaller.kt`
+- Removed `Runtime.getRuntime().exit(0)` from `restartApp()` — causes data loss (unflushed writes, incomplete DB transactions)
+- Now just relaunches the app via `startActivity()` — system manages process lifecycle
+
+### 33. Dead Code Cleanup
+**File:** `UpdateViewModel.kt`
+- Removed `cancelDownload()` method — never called from any UI code
+- `cancelDownload()` was dead code referencing `apkInstaller.cancelDownload()`
+
+### 34. Silent Exception Logging
+**Files:** `EqualizerManager.kt`, `MainPlayerScreen.kt`
+- Added `Log.w(TAG, ...)` to 6 empty catch blocks in `EqualizerManager.kt` (setEnabled, setBassBoost, setVirtualizer, setVolumeNormalization, applyPreset, release)
+- Added `Log.w("MainPlayerScreen", ...)` to palette extraction catch block
+- Prevents silent exception swallowing that makes debugging impossible
+
+---
+
+## BUILD STATUS
+- **BUILD SUCCESSFUL** (only deprecation warnings)
+- **Clean build** ran successfully (41 tasks)
+- **Git push** to `origin/main` — commit `9edbfd0`
+- **46 files changed**, 3925 insertions, 1770 deletions

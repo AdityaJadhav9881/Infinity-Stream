@@ -1,11 +1,11 @@
 # MusicFlow — Technical Report
 
-**Version:** 1.2.0  
+**Version:** 1.3.0  
 **Package:** `com.musicflow.app`  
 **Platform:** Android (minSdk 26, targetSdk 35)  
 **Language:** Kotlin 100%  
 **UI Framework:** Jetpack Compose (Material 3)  
-**Date:** July 2026
+**Date:** August 2026
 
 ---
 
@@ -42,6 +42,7 @@ MusicFlow follows an **MVVM (Model-View-ViewModel)** architecture with a singlet
 ┌──────────────────────────────────────────────────────────┐
 │                     UI Layer (Compose)                   │
 │  Screens ─── ViewModels ─── StateFlows ─── UI State     │
+│  MainPlayerScreen ←── PlaybackStatus ←── ExoPlayer      │
 ├──────────────────────────────────────────────────────────┤
 │                  State Layer (Singleton)                  │
 │  SharedMusicState (@Singleton) — Single Source of Truth  │
@@ -49,15 +50,16 @@ MusicFlow follows an **MVVM (Model-View-ViewModel)** architecture with a singlet
 ├──────────────────────────────────────────────────────────┤
 │                   Service Layer                          │
 │  MusicPlaybackService (Media3 MediaSessionService)      │
-│  DownloadManager (queue-based)                           │
+│  QueuePersistenceManager (Room queue persistence)       │
 ├──────────────────────────────────────────────────────────┤
 │                    Data Layer                            │
-│  Room DB (v7) ─── 8 DAOs ─── 9 Entities                │
+│  Room DB (v9) ─── 8 DAOs ─── 10 Entities               │
 │  InnertubeClient ─── SearchRepository                   │
 │  MediaExtractionRepository (yt-dlp)                     │
 ├──────────────────────────────────────────────────────────┤
 │                  Utility Layer                           │
 │  Preferences (DataStore) │ Workers │ Managers           │
+│  ApkInstaller (OkHttp) │ UpdateChecker │ CrashReporter  │
 ├──────────────────────────────────────────────────────────┤
 │                   Platform Layer                         │
 │  ExoPlayer/Media3 │ yt-dlp │ OkHttp │ Coil              │
@@ -98,7 +100,8 @@ app/src/main/kotlin/com/musicflow/app/
 │
 ├── player/
 │   ├── MusicPlaybackService.kt      # Media3 MediaSessionService
-│   └── DownloadManager.kt           # Queue-based download system
+│   ├── DownloadManager.kt           # Queue-based download system
+│   └── QueuePersistenceManager.kt   # Queue save/restore with position
 │
 ├── worker/
 │   ├── MediaStoreReconciliationWorker.kt  # Sync filesystem ↔ DB
@@ -115,6 +118,8 @@ app/src/main/kotlin/com/musicflow/app/
 │   │   ├── PlaylistDetailScreen.kt
 │   │   ├── ArtistScreen.kt
 │   │   ├── AlbumScreen.kt
+│   │   ├── UpdateScreen.kt          # App update UI
+│   │   ├── UnauthorizedScreen.kt    # Auth required screen
 │   │   └── (ViewModels colocated)
 │   ├── components/                  # 8 reusable components
 │   │   ├── MiniPlayer.kt
@@ -145,16 +150,24 @@ app/src/main/kotlin/com/musicflow/app/
 │   ├── SleepTimerManager.kt
 │   ├── EqualizerManager.kt
 │   ├── SoftwareEqualizerProcessor.kt
-│   └── NetworkMonitor.kt
+│   ├── NetworkMonitor.kt
+│   ├── ApkInstaller.kt              # APK download + install (OkHttp-based)
+│   ├── UpdateChecker.kt             # Checks for app updates
+│   ├── CrashReporter.kt             # Crash reporting
+│   ├── DeviceIdProvider.kt          # Unique device ID
+│   ├── RemoteConfigManager.kt       # Remote config
+│   └── TelemetryTracker.kt          # Usage telemetry
 │
 ├── di/
 │   ├── DatabaseModule.kt
-│   └── PlayerModule.kt
+│   ├── PlayerModule.kt
+│   ├── NetworkModule.kt
+│   └── DataStoreModule.kt
 │
 └── build.gradle.kts
 ```
 
-**Total source files:** ~68 Kotlin files
+**Total source files:** ~82 Kotlin files
 
 ---
 
@@ -170,6 +183,8 @@ app/src/main/kotlin/com/musicflow/app/
 |--------|-------|----------|
 | `DatabaseModule` | `SingletonComponent` | `AppDatabase`, all 8 DAOs |
 | `PlayerModule` | `SingletonComponent` | `SimpleCache` (2 GB LRU) |
+| `NetworkModule` | `SingletonComponent` | `HttpClient` (Ktor OkHttp) |
+| `DataStoreModule` | `SingletonComponent` | `DataStore<Preferences>` |
 
 ### Injected Singletons
 
@@ -185,24 +200,25 @@ app/src/main/kotlin/com/musicflow/app/
 | `SimpleCache` | `MusicPlaybackService` |
 | `AppDatabase` | All repositories |
 
-### ViewModels (8 total)
+### ViewModels (10 total)
 
 | ViewModel | Key Dependencies |
 |-----------|-----------------|
-| `PlayerViewModel` | `SharedMusicState`, `SearchRepository` |
+| `PlayerViewModel` | `SharedMusicState`, `SearchRepository`, `QueuePersistenceManager` |
 | `HomeViewModel` | `SharedMusicState`, `SearchRepository`, `PlaylistDao` |
 | `LibraryViewModel` | `SharedMusicState` |
 | `SearchViewModel` | `SearchRepository` |
 | `PlaylistViewModel` | `SharedMusicState` |
 | `ArtistViewModel` | `SearchRepository` |
 | `AlbumViewModel` | `SearchRepository` |
+| `UpdateViewModel` | `ApkInstaller`, `UpdateChecker` |
 | `EngineInfoViewModel` | — |
 
 ---
 
 ## 4. Data Layer — Room Database
 
-**Database:** `AppDatabase` (Room, **version 7**, `fallbackToDestructiveMigration()`)
+**Database:** `AppDatabase` (Room, **version 9**, `fallbackToDestructiveMigration()`)
 
 ### Entities (9)
 
@@ -214,7 +230,7 @@ app/src/main/kotlin/com/musicflow/app/
 | `PlaylistEntity` | `playlists` | `id` (auto PK), name, createdAt, updatedAt |
 | `PlaylistTrackMap` | `playlist_track_map` | `id` (auto PK), playlistId, songId, position |
 | `LyricsEntity` | `lyrics` | `songId` (PK), lyrics, provider |
-| `QueueEntity` | `queue` | `id` (auto PK), songId, position, addedAt |
+| `QueueEntity` | `queue` | `id` (auto PK), songId, position, addedAt, title, artist, artworkUrl, resolvedStreamingUrl, currentItemIndex, playbackPositionMs, isShuffleOn, repeatMode |
 | `OfflineTrackEntity` | `offline_tracks` | `songId` (PK), title, artist, artworkUrl, localFilePath, fileSize, downloadedAt |
 | `DownloadQueueEntity` | `download_queue` | `songId` (PK), status, progress, speed, totalBytes, downloadedBytes, retryCount |
 
@@ -326,8 +342,45 @@ AudioTrack (system audio output)
 ### Queue Management
 
 - `PlayerViewModel` manages play/pause, skip, seek, shuffle, loop, queue manipulation
-- Queue is a `MutableList<SearchResult>` with current index tracking
-- Queue can be persisted via `QueueDao`
+- Queue persisted via `QueuePersistenceManager` → Room DB with position, index, shuffle/repeat state
+- Stale URLs re-extracted on app restart via parallel semaphore (3 concurrent)
+- Queue restored on startup with saved playback position and track index
+
+### Smart Playback Status Engine
+
+`PlaybackStatus` enum provides real-time status updates to the UI:
+
+| Status | Trigger | Visual |
+|--------|---------|--------|
+| `IDLE` | No track loaded | Dots hidden |
+| `EXTRACTING` | Audio URL extraction starts | Fast staggered dots + "Extracting audio..." |
+| `PREPARING` | ExoPlayer preparing | Medium staggered dots + "Preparing..." |
+| `BUFFERING` | ExoPlayer buffering | Slow uniform pulse + "Buffering..." |
+| `PLAYING` | ExoPlayer ready & playing | Gentle uniform pulse, no text |
+| `PAUSED` | Playback paused | Dots dim to 0.2, "Paused" |
+| `RESTORING` | Queue restoring from DB | Fast uniform pulse + "Restoring queue..." |
+| `FILLING_QUEUE` | Filling queue with similar tracks | Medium staggered + "Loading similar tracks..." |
+| `ERROR` | Playback error occurred | Red dots, "Playback error" |
+
+**Status update points in PlayerViewModel:**
+1. `playTrack()` → PREPARING
+2. `playFromLibrary()` → EXTRACTING
+3. `playNext()` → EXTRACTING
+4. `enqueue()` → EXTRACTING
+5. `playFromPlaylistContext()` → EXTRACTING
+6. `playPlaylistQueue()` → EXTRACTING
+7. `restoreQueueFromDatabase()` → RESTORING
+8. `fillQueue()` → FILLING_QUEUE
+9. `onPlaybackStateChanged(STATE_BUFFERING)` → BUFFERING
+10. `onPlaybackStateChanged(STATE_READY)` → PLAYING
+11. `onIsPlayingChanged(false)` → PAUSED
+12. `onPlayerError()` → ERROR
+
+**MainPlayerScreen indicator:**
+- Three dots with independent per-dot animations (0ms, 200ms, 400ms offset)
+- Each state has unique animation timing (300ms–1500ms)
+- Status text shown below dots when loading/paused/error, hidden when playing
+- Red dots for errors, dim dots for paused
 
 ### Sleep Timer
 
@@ -788,6 +841,23 @@ YouTube's CDN requires specific cookies and PoToken headers. Without them, reque
 | SettingsScreen | Section headers, background, spacing on design tokens |
 | MainPlayerScreen | All colors/spacing on `MFColors`/`MFTokens` |
 
+### Bug Fixes & Improvements (Session 4 — August 1, 2026)
+
+| Bug/Issue | Root Cause | Fix |
+|-----------|-----------|-----|
+| Google Drive download broken | Android `DownloadManager` can't handle Google Drive's virus-scan consent page — downloads HTML instead of APK | Replaced with direct OkHttp download with redirect following |
+| API key hardcoded in source | Secret key `im_sk_...` was a `const val` in `InfinityMasterClient.kt` — trivially extractable via decompilation | Moved to `BuildConfig.API_KEY` via `build.gradle.kts` |
+| Hard process kill on restart | `Runtime.getRuntime().exit(0)` in `ApkInstaller.restartApp()` causes data loss | Removed — now just relaunches via `startActivity()` |
+| Dead `cancelDownload()` code | `UpdateViewModel.cancelDownload()` was never called from any UI | Removed dead method |
+| Silent exception swallowing | Empty `catch (e: Exception) {}` blocks in `EqualizerManager` (6 locations) and `MainPlayerScreen` | Added `Log.w()` to all catch blocks |
+| Playback state not visible to user | Three dots were a static animation with no state information | Replaced with smart `PlaybackStatus` engine showing real-time state |
+| Queue position lost on restart | `QueueEntity` had no position/index/shuffle/repeat columns | Added columns, bumped DB v8→v9, added `MIGRATION_8_9` |
+| Stale URLs on restart | YouTube CDN URLs expire after hours | `restoreQueueFromDatabase()` re-extracts URLs in parallel on startup |
+| Corrupted song stops playback | Single bad audio URL crashed ExoPlayer with no recovery | `onPlayerError()` now auto-skips to next track |
+| Battery drain from animations | `rememberInfiniteTransition` ran even when player paused | Replaced with `animateFloatAsState` that only animates when playing |
+| Hardcoded year in trending | `loadTrending()` used hardcoded `"2024"` | Changed to `Calendar.getInstance().get(YEAR)` |
+| Downloads filter showed all tracks | `LibraryViewModel` DOWNLOADS filter didn't check offline status | Now filters by `offlineTracks` set |
+
 ---
 
-*Report generated from MusicFlow codebase analysis — 74 Kotlin source files, full coverage.*
+*Report generated from MusicFlow codebase analysis — 82 Kotlin source files, full coverage.*
