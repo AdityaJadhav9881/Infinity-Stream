@@ -18,16 +18,26 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -43,6 +53,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -79,8 +93,15 @@ import com.musicflow.app.ui.screens.PlayerViewModel
 import com.musicflow.app.ui.screens.SearchScreen
 import com.musicflow.app.ui.screens.SearchViewModel
 import com.musicflow.app.ui.screens.SettingsScreen
+import com.musicflow.app.ui.screens.SplashScreen
 import com.musicflow.app.ui.screens.UpdateScreen
 import com.musicflow.app.ui.screens.UpdateViewModel
+import com.musicflow.app.ui.timemachine.TimeMachineScreen
+import com.musicflow.app.ui.galaxy.MusicGalaxy
+import com.musicflow.app.ui.galaxy.GalaxyNode
+import com.musicflow.app.ui.galaxy.GalaxyNodeType
+import com.musicflow.app.ui.genome.MusicGenome
+import com.musicflow.app.ui.zero.ZeroUiOverlay
 import com.musicflow.app.data.local.LocalBackupManager
 import com.musicflow.app.data.remote.InfinityMasterClient
 import com.musicflow.app.ui.theme.AccentGreen
@@ -96,6 +117,12 @@ import com.musicflow.app.utils.PlayerSettingsManager
 import com.musicflow.app.utils.DownloadSettingsManager
 import com.musicflow.app.utils.ThemeMode
 import com.musicflow.app.utils.ThemePreferences
+import com.musicflow.app.audio.AudioAnalysisEngine
+import com.musicflow.app.artwork.ArtworkIntelligenceEngine
+import com.musicflow.app.ui.theme.DynamicThemeEngine
+import com.musicflow.app.ui.visual.VisualEngine
+import com.musicflow.app.utils.PerformanceMonitor
+import com.musicflow.app.utils.HapticEngine
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -110,17 +137,32 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var downloadSettingsManager: DownloadSettingsManager
     @Inject lateinit var infinityMasterClient: InfinityMasterClient
     @Inject lateinit var deviceIdProvider: DeviceIdProvider
+    @Inject lateinit var audioAnalysisEngine: AudioAnalysisEngine
+    @Inject lateinit var artworkIntelligenceEngine: ArtworkIntelligenceEngine
+    @Inject lateinit var dynamicThemeEngine: DynamicThemeEngine
+    @Inject lateinit var visualEngine: VisualEngine
+    @Inject lateinit var performanceMonitor: PerformanceMonitor
+    @Inject lateinit var hapticEngine: HapticEngine
 
     private lateinit var prefs: SharedPreferences
 
+    private var permissionResultCallback: ((Boolean) -> Unit)? = null
+
     private val storagePermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
-    ) { /* user granted or denied — we check below */ }
+    ) {
+        val granted = Environment.isExternalStorageManager()
+        permissionResultCallback?.invoke(granted)
+        permissionResultCallback = null
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         prefs = getSharedPreferences("musicflow_prefs", MODE_PRIVATE)
+
+        // Start performance monitoring for adaptive visual quality
+        performanceMonitor.start()
 
         // Step 1: Request MANAGE_EXTERNAL_STORAGE if not granted
         requestStoragePermissionIfNeeded()
@@ -138,6 +180,13 @@ class MainActivity : ComponentActivity() {
             val isOnboardingDone by languagePreferences.isOnboardingDone.collectAsState(initial = null)
             var isDeviceDisabled by remember { mutableStateOf(false) }
             var deviceStatusChecked by remember { mutableStateOf(false) }
+            var hasStoragePermission by remember {
+                mutableStateOf(
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                        Environment.isExternalStorageManager()
+                    } else true
+                )
+            }
 
             // Show dialog only if we just restored — ask to keep or discard
             var showRestoreConfirm by remember { mutableStateOf(shouldRestore) }
@@ -201,6 +250,21 @@ class MainActivity : ComponentActivity() {
                 }
 
                 when {
+                    !hasStoragePermission -> {
+                        StoragePermissionScreen(
+                            onRequestPermission = {
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                        data = android.net.Uri.parse("package:$packageName")
+                                    }
+                                    permissionResultCallback = { granted ->
+                                        hasStoragePermission = granted
+                                    }
+                                    storagePermissionLauncher.launch(intent)
+                                }
+                            }
+                        )
+                    }
                     showRestoreConfirm -> { /* dialog blocks UI */ }
                     isDeviceDisabled -> { UnauthorizedScreen() }
                     isOnboardingDone == null -> { /* loading */ }
@@ -255,12 +319,66 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-}
 
 private fun formatCacheSize(bytes: Long): String = when {
     bytes < 1024 -> "$bytes B"
     bytes < 1024 * 1024 -> "${bytes / 1024} KB"
     else -> "${"%.1f".format(bytes / (1024.0 * 1024.0))} MB"
+}
+
+@Composable
+private fun StoragePermissionScreen(
+    onRequestPermission: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier.padding(48.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.FolderOpen,
+                contentDescription = null,
+                tint = AccentGreen,
+                modifier = Modifier.size(72.dp),
+            )
+            Text(
+                text = "Storage Permission Required",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = "Infinity Stream needs access to your files to play music, manage downloads, and save your library. Please grant storage permission to continue.",
+                fontSize = 14.sp,
+                color = Color(0xFF8E8E93),
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            androidx.compose.material3.Button(
+                onClick = onRequestPermission,
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = AccentGreen,
+                    contentColor = Color.Black,
+                ),
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Text(
+                    text = "Grant Permission",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -345,6 +463,7 @@ private fun MusicFlowApp(
     val coroutineScope = rememberCoroutineScope()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    var showSplash by remember { mutableStateOf(true) }
 
     val autoDownloadLiked by downloadSettingsManager.autoDownloadLiked.collectAsState(initial = false)
     var userName by remember { mutableStateOf("") }
@@ -371,25 +490,23 @@ private fun MusicFlowApp(
         if (showFullPlayer) showFullPlayer = false
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            MusicFlowBottomNavBar(
-                currentRoute = currentRoute,
-                onNavigate = { route ->
-                    navController.navigate(route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-            )
-        },
-    ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+    if (showSplash) {
+        SplashScreen(
+            onSplashFinished = { showSplash = false },
+            modifier = Modifier.fillMaxSize(),
+        )
+    } else {
+    val statusBarPadding = WindowInsets.statusBars.asPaddingValues()
+    val navigationBarPadding = WindowInsets.navigationBars.asPaddingValues()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Content area
+            Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(top = statusBarPadding.calculateTopPadding())) {
                     NavHost(navController = navController, startDestination = Screen.Home.route) {
                         composable(Screen.Home.route) {
                             HomeScreen(
@@ -768,6 +885,40 @@ private fun MusicFlowApp(
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }
+                        composable("timemachine") {
+                            TimeMachineScreen(
+                                onTrackSelected = { trackId ->
+                                    playerViewModel.playFromLibrary(trackId, "", "", "")
+                                },
+                            )
+                        }
+                        composable("galaxy") {
+                            val galaxyNodes = listOf(
+                                GalaxyNode(id = "1", label = "Favorites", type = GalaxyNodeType.FAVORITE, position = androidx.compose.ui.geometry.Offset(200f, 300f), size = 60f),
+                                GalaxyNode(id = "2", label = "Recently Played", type = GalaxyNodeType.PLAYLIST, position = androidx.compose.ui.geometry.Offset(400f, 200f), size = 50f),
+                                GalaxyNode(id = "3", label = "Discoveries", type = GalaxyNodeType.ALBUM, position = androidx.compose.ui.geometry.Offset(300f, 500f), size = 45f),
+                            )
+                            MusicGalaxy(
+                                nodes = galaxyNodes,
+                                edges = emptyList(),
+                                onNodeTap = { },
+                                onNodeLongPress = { },
+                            )
+                        }
+                        composable("genome") {
+                            val dimensions = listOf(
+                                com.musicflow.app.ui.genome.GenomeDimension("Energy", 0.7f),
+                                com.musicflow.app.ui.genome.GenomeDimension("Acoustic", 0.4f),
+                                com.musicflow.app.ui.genome.GenomeDimension("Electronic", 0.6f),
+                                com.musicflow.app.ui.genome.GenomeDimension("Tempo", 0.5f),
+                                com.musicflow.app.ui.genome.GenomeDimension("Mood", 0.8f),
+                                com.musicflow.app.ui.genome.GenomeDimension("Discovery", 0.3f),
+                            )
+                            MusicGenome(
+                                dimensions = dimensions,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
                     }
                 }
                 AnimatedVisibility(
@@ -790,6 +941,19 @@ private fun MusicFlowApp(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+
+                // Bottom navigation
+                MusicFlowBottomNavBar(
+                    currentRoute = currentRoute,
+                    onNavigate = { route ->
+                        navController.navigate(route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    modifier = Modifier.padding(bottom = navigationBarPadding.calculateBottomPadding()),
+                )
             }
             if (showFullPlayer && playerUiState.currentTrack != null) {
                 Box(
@@ -815,6 +979,7 @@ private fun MusicFlowApp(
                         onSwipeDown = { showFullPlayer = false },
                         isLiked = playerUiState.isCurrentTrackLiked,
                         onLikeToggle = {
+                            hapticEngine.performClick()
                             playerUiState.currentTrack?.let { track ->
                                 toggleFavoriteAndMaybeDownload(
                                     com.musicflow.app.data.remote.SearchResult(
@@ -827,9 +992,15 @@ private fun MusicFlowApp(
                             }
                         },
                         isShuffleOn = playerUiState.isShuffleOn,
-                        onShuffleToggle = playerViewModel::toggleShuffle,
+                        onShuffleToggle = {
+                            hapticEngine.performClick()
+                            playerViewModel.toggleShuffle()
+                        },
                         loopMode = playerUiState.loopMode,
-                        onLoopToggle = playerViewModel::toggleLoop,
+                        onLoopToggle = {
+                            hapticEngine.performClick()
+                            playerViewModel.toggleLoop()
+                        },
                         isLyricsVisible = playerUiState.isLyricsVisible,
                         onLyricsToggle = playerViewModel::toggleLyricsVisibility,
                         onSleepTimerClick = { showSleepTimerDialog = true },
@@ -843,6 +1014,10 @@ private fun MusicFlowApp(
                         onQueueItemSelected = playerViewModel::skipToQueueItem,
                         onRemoveFromQueue = playerViewModel::removeFromQueue,
                         playbackStatus = playerUiState.playbackStatus,
+                        artworkEngine = artworkIntelligenceEngine,
+                        dynamicThemeEngine = dynamicThemeEngine,
+                        audioAnalysisEngine = audioAnalysisEngine,
+                        visualEngine = visualEngine,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -949,5 +1124,6 @@ private fun MusicFlowApp(
                 )
             }
         }
+    }
     }
 }

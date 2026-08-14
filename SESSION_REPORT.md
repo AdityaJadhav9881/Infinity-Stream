@@ -368,8 +368,77 @@ HomeViewModel → observes SharedMusicState.recentlyPlayed, favoriteTracks, play
 
 ---
 
+---
+
+## SESSION 5 — August 14, 2026 — Premium UI Redesign
+
+### 35. Now Playing Screen — Tab Selector Redesign
+**File:** `MainPlayerScreen.kt`
+- Removed static green underline `TabRow` indicator completely
+- Replaced with custom `Row`-based tab selector
+- Active tab: bright white, SemiBold, 13sp
+- Inactive tab: muted gray at 40% alpha
+- Subtle animated glow/ambient highlight derived from current artwork accent color behind active tab
+- Smooth spring-animated transitions when switching between Now Playing and Queue
+- Uses `animatedVibrant` color from dynamic artwork palette — no hardcoded green
+
+### 36. Playback Controls — Complete Redesign
+**File:** `MainPlayerScreen.kt`
+- **Secondary Controls** (Heart, Queue, Lyrics, Sleep Timer): equal-width `SpaceEvenly` distribution, 44dp touch targets, press feedback via `collectIsPressedAsState` + spring scale animation
+- **Transport Controls** (Prev, Play/Pause, Next): play/pause button centered at 64dp with `animatedVibrant` accent color and ambient glow shadow, prev/next at 48dp symmetric on either side, press scale feedback on all buttons
+- **Progress Section**: replaced Material3 `Slider` with custom track layout — full-width 3dp track, accent gradient fill, 10dp rounded white thumb with press scale animation, smooth animated progress via `animateFloatAsState`, time labels aligned with track edges (11sp, TextDim)
+- **All colors dynamic**: progress bar, play button, glow, lyrics/sleep timer active state — all derive from `animatedVibrant` (artwork palette), never hardcoded green
+- Removed unused `ExperimentalMaterial3Api`, `Slider`, `SliderDefaults`, `TabRow`, `TabRowDefaults` imports
+- Queue items also use dynamic accent color for "NOW PLAYING" label and current track indicator
+
+### 37. MiniPlayer — Rebuilt from Scratch
+**File:** `MiniPlayer.kt`
+- Floating compact card with `RoundedCornerShape(20.dp)`, glass gradient background, glass border
+- 44dp album artwork (up from 40dp), rounded corners
+- Thin 2dp progress indicator along top edge
+- Equalizer bars: 3 animated bars, 12dp wide, 16dp tall, accent-colored
+- 42dp play/pause button with accent glow shadow
+- Press feedback via `collectIsPressedAsState` + spring scale animation
+- Proper `remember` import added to fix compilation error
+
+### 38. BottomNavBar — Rebuilt from Scratch
+**File:** `BottomNavBar.kt`
+- Strict 4-column equal-width grid via `Modifier.weight(1f)` on each item
+- `RoundedCornerShape(24.dp)` floating card with glass gradient + border
+- Active: emerald accent icon + label + subtle 30dp rounded background pill
+- Inactive: muted gray at 50% alpha
+- Spring-animated color transitions between active/inactive states
+- 52dp height (down from 54dp), tighter internal padding
+
+### 39. Add to Playlist — Redesigned as Compact Bottom Sheet
+**File:** `AddToPlaylistDialog.kt`
+- Replaced oversized `AlertDialog` with `ModalBottomSheet`
+- Content-based height (~30-40% screen), rounded top corners (20dp)
+- Subtle 36dp drag handle at top
+- Dark elevated surface (`#1C1C1E`)
+- Title "Add to Playlist" at top (18sp, SemiBold)
+- "+ Create New Playlist" primary action with green tint background
+- If playlists exist: compact scrollable list (max 240dp) with proper spacing
+- If no playlists: "No playlists yet" empty state
+- Cancel neatly at bottom/right with proper padding
+- Smooth slide-up animation via `rememberModalBottomSheetState(skipPartiallyExpanded = true)`
+- `kotlinx.coroutines.launch` for dismiss animation
+
+### 40. Sleep Timer — Redesigned as Compact Bottom Sheet
+**File:** `SleepTimerDialog.kt`
+- Replaced oversized `AlertDialog` with `ModalBottomSheet`
+- Same design system as Add to Playlist (matching premium feel)
+- Content-based height, rounded top corners, drag handle
+- Title "Sleep Timer" + subtitle "Stop playback after"
+- Preset buttons (15m, 30m, 45m, 60m, 90m) in 3-column grid, `OptionSurface` background
+- Custom input row: 100dp TextField + "Start" button with accent background
+- Cancel at bottom/right
+- Smooth slide-up animation
+
+---
+
 ## BUILD STATUS
 - **BUILD SUCCESSFUL** (only deprecation warnings)
-- **Clean build** ran successfully (41 tasks)
-- **Git push** to `origin/main` — commit `9edbfd0`
-- **46 files changed**, 3925 insertions, 1770 deletions
+- **41 tasks** executed
+- **APK**: `app\build\outputs\apk\debug\app-debug.apk`
+- Files modified: `MainPlayerScreen.kt`, `MiniPlayer.kt`, `BottomNavBar.kt`, `AddToPlaylistDialog.kt`, `SleepTimerDialog.kt`

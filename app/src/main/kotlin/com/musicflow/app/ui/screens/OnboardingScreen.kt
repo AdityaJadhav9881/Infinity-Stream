@@ -74,6 +74,7 @@ fun OnboardingScreen(
     var howDidYouHear by remember { mutableStateOf("") }
     var showSuggestions by remember { mutableStateOf(false) }
     var step by remember { mutableIntStateOf(0) }
+    val isStep0Valid = fullName.isNotBlank() && howDidYouHear.isNotBlank()
 
     val filteredSuggestions = HOW_DID_YOU_HEAR_SUGGESTIONS.filter {
         it.contains(howDidYouHear, ignoreCase = true) && howDidYouHear.isNotBlank()
@@ -236,6 +237,16 @@ fun OnboardingScreen(
 
         Spacer(modifier = Modifier.height(28.dp))
 
+        if (step == 0 && !isStep0Valid) {
+            Text(
+                text = "Please fill in all fields to continue",
+                style = MaterialTheme.typography.bodySmall,
+                color = MFColors.Error,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
         if (step == 1) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
@@ -306,7 +317,7 @@ fun OnboardingScreen(
                 containerColor = MFColors.Accent,
             ),
             shape = MFTokens.MediumRadius,
-            enabled = step == 0 || selectedLanguages.isNotEmpty(),
+            enabled = if (step == 0) isStep0Valid else selectedLanguages.isNotEmpty(),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 18.dp)

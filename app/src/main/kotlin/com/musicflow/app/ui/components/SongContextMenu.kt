@@ -3,6 +3,7 @@ package com.musicflow.app.ui.components
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Queue
@@ -40,14 +40,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.musicflow.app.data.remote.SearchResult
-import com.musicflow.app.ui.theme.AccentGreen
-import com.musicflow.app.ui.theme.DarkSurface
-import com.musicflow.app.ui.theme.DarkSurfaceVariant
-import com.musicflow.app.ui.theme.OnBackground
-import com.musicflow.app.ui.theme.OnBackgroundVariant
+import com.musicflow.app.ui.theme.MFColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,28 +65,30 @@ fun SongContextMenu(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = DarkSurface,
+        containerColor = MFColors.DialogBackground,
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        scrimColor = MFColors.Background.copy(alpha = 0.6f),
+        dragHandle = null,
     ) {
         Column(
             modifier = modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp),
+                .padding(horizontal = 12.dp)
+                .padding(bottom = 16.dp, top = 4.dp),
         ) {
             // Handle
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
                     modifier = Modifier
-                        .width(40.dp)
-                        .height(4.dp)
+                        .width(32.dp)
+                        .height(3.5.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(OnBackgroundVariant.copy(alpha = 0.4f)),
+                        .background(MFColors.TextTertiary.copy(alpha = 0.5f)),
                 )
             }
 
@@ -97,14 +96,14 @@ fun SongContextMenu(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(40.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(DarkSurfaceVariant),
+                        .background(MFColors.GlassMid),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (track.thumbnailUrl.isNotBlank()) {
@@ -120,27 +119,37 @@ fun SongContextMenu(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = track.title,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = OnBackground,
+                        color = MFColors.TextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(1.dp))
                     Text(
                         text = track.artist,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = OnBackgroundVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MFColors.TextSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
+
+            // Divider
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(0.5.dp)
+                    .background(MFColors.GlassBorder)
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             // Action items
             ContextMenuItem(
@@ -220,22 +229,22 @@ private fun ContextMenuItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
-            .padding(vertical = 14.dp, horizontal = 8.dp),
+            .padding(horizontal = 10.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = OnBackgroundVariant,
-            modifier = Modifier.size(22.dp),
+            tint = MFColors.TextSecondary,
+            modifier = Modifier.size(18.dp),
         )
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = OnBackground,
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+            color = MFColors.TextPrimary,
         )
     }
 }

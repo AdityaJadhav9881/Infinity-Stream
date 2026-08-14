@@ -6,12 +6,14 @@ import com.musicflow.app.data.local.AppDatabase
 import com.musicflow.app.data.local.Migrations
 import com.musicflow.app.data.local.dao.FavoriteDao
 import com.musicflow.app.data.local.dao.LyricsDao
+import com.musicflow.app.data.local.dao.ListeningEventDao
 import com.musicflow.app.data.local.dao.OfflineTrackDao
 import com.musicflow.app.data.local.dao.PlaylistDao
 import com.musicflow.app.data.local.dao.QueueDao
 import com.musicflow.app.data.local.dao.SearchHistoryDao
 import com.musicflow.app.data.local.dao.TrackDao
 import com.musicflow.app.data.local.dao.DownloadQueueDao
+import com.musicflow.app.data.local.dao.MusicGraphDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -78,5 +80,15 @@ object DatabaseModule {
     @Provides
     fun provideDownloadQueueDao(database: AppDatabase): DownloadQueueDao {
         return database.downloadQueueDao()
+    }
+
+    @Provides
+    fun provideListeningEventDao(database: AppDatabase): ListeningEventDao {
+        return database.listeningEventDao()
+    }
+
+    @Provides
+    fun provideMusicGraphDao(database: AppDatabase): MusicGraphDao {
+        return database.musicGraphDao()
     }
 }

@@ -21,7 +21,9 @@ import com.musicflow.app.data.local.entity.TrackEntity
 import com.musicflow.app.data.lyrics.LyricsProvider
 import com.musicflow.app.data.remote.AudioHeaderStore
 import com.musicflow.app.data.remote.SearchResult
+import com.musicflow.app.data.repository.MusicMemoryRepository
 import com.musicflow.app.data.repository.SearchRepository
+import com.musicflow.app.domain.memory.MusicMemoryEventType
 import com.musicflow.app.player.MusicPlaybackService
 import com.musicflow.app.player.OfflineDownloadManager
 import com.musicflow.app.player.QueuePersistenceManager
@@ -54,6 +56,7 @@ class PlayerViewModel @Inject constructor(
     private val offlineDownloadManager: OfflineDownloadManager,
     private val networkMonitor: NetworkMonitor,
     private val sharedMusicState: SharedMusicState,
+    private val musicMemoryRepository: MusicMemoryRepository,
 ) : AndroidViewModel(application) {
 
     companion object {
@@ -154,6 +157,9 @@ class PlayerViewModel @Inject constructor(
                 )
                 offlineDownloadManager.downloadTrack(metadata, result.headers)
                     .onSuccess {
+                        viewModelScope.launch(Dispatchers.IO) {
+                            musicMemoryRepository.record(MusicMemoryEventType.DOWNLOADED, metadata)
+                        }
                         _uiState.update { it.copy(isDownloading = false, downloadingTrackId = null, downloadSuccess = track.title) }
                         Log.i(TAG, "Downloaded for offline: ${track.title}")
                     }
@@ -1045,27 +1051,19 @@ class PlayerViewModel @Inject constructor(
     }
 
     /**
-     * Saves a track to the Room library database AND marks it as recently played.
-     * Called automatically when a track starts playing.
-     * Uses SharedMusicState for single-source-of-truth updates.
+     * Caches track metadata while a queue is constructed.
+     *
+     * Queue construction is not listening. MusicMemoryEngine records the play
+     * only after Media3 starts the item, so preloaded tracks cannot inflate
+     * Recently Played or Most Played.
      */
     private fun saveTrackToLibrary(metadata: TrackMetadata) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val existingTrack = trackDao.getTrackBySongId(metadata.songId)
-                val track = TrackEntity(
-                    songId = metadata.songId,
-                    title = metadata.title,
-                    artist = metadata.artist,
-                    artworkUrl = metadata.artworkUrl,
-                    addedAt = existingTrack?.addedAt ?: System.currentTimeMillis(),
-                    playCount = (existingTrack?.playCount ?: 0) + 1,
-                    lastPlayedAt = System.currentTimeMillis(),
-                )
-                trackDao.upsertTrack(track)
-                Log.d(TAG, "Saved to library: ${metadata.title}")
+                musicMemoryRepository.cacheTrack(metadata)
+                Log.d(TAG, "Cached track metadata: ${metadata.title}")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to save to library: ${e.message}")
+                Log.e(TAG, "Failed to cache track metadata: ${e.message}")
             }
         }
     }

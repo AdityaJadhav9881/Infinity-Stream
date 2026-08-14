@@ -1,6 +1,6 @@
 # MusicFlow — Technical Report
 
-**Version:** 1.3.0  
+**Version:** 1.4.0  
 **Package:** `com.musicflow.app`  
 **Platform:** Android (minSdk 26, targetSdk 35)  
 **Language:** Kotlin 100%  
@@ -53,7 +53,7 @@ MusicFlow follows an **MVVM (Model-View-ViewModel)** architecture with a singlet
 │  QueuePersistenceManager (Room queue persistence)       │
 ├──────────────────────────────────────────────────────────┤
 │                    Data Layer                            │
-│  Room DB (v9) ─── 8 DAOs ─── 10 Entities               │
+│  Room DB (v12) ─── 11 DAOs ─── 10 Entities              │
 │  InnertubeClient ─── SearchRepository                   │
 │  MediaExtractionRepository (yt-dlp)                     │
 ├──────────────────────────────────────────────────────────┤
@@ -101,14 +101,27 @@ app/src/main/kotlin/com/musicflow/app/
 ├── player/
 │   ├── MusicPlaybackService.kt      # Media3 MediaSessionService
 │   ├── DownloadManager.kt           # Queue-based download system
-│   └── QueuePersistenceManager.kt   # Queue save/restore with position
-│
+│   ├── QueuePersistenceManager.kt   # Queue save/restore with position
+│   ├── AudioEffectsController.kt    # Equalizer/volume effects
+│   ├── MusicMemoryEngine.kt         # Listening pattern analysis
+│   ├── PlaybackController.kt        # Playback state management
+│   └── QueueController.kt           # Queue manipulation
+
+├── audio/
+│   └── AudioAnalysisEngine.kt       # Real-time audio analysis
+
+├── artwork/
+│   └── ArtworkIntelligenceEngine.kt # Artwork analysis + palette
+
+├── domain/
+│   └── (use cases)
+
 ├── worker/
 │   ├── MediaStoreReconciliationWorker.kt  # Sync filesystem ↔ DB
 │   └── DatabaseBackupWorker.kt            # Periodic backup
 │
 ├── ui/
-│   ├── screens/                     # 10 screens
+│   ├── screens/                     # 12 screens
 │   │   ├── HomeScreen.kt
 │   │   ├── SearchScreen.kt
 │   │   ├── LibraryScreen.kt
@@ -120,17 +133,27 @@ app/src/main/kotlin/com/musicflow/app/
 │   │   ├── AlbumScreen.kt
 │   │   ├── UpdateScreen.kt          # App update UI
 │   │   ├── UnauthorizedScreen.kt    # Auth required screen
+│   │   ├── SplashScreen.kt
 │   │   └── (ViewModels colocated)
 │   ├── components/                  # 8 reusable components
 │   │   ├── MiniPlayer.kt
 │   │   ├── MainPlayerScreen.kt
 │   │   ├── BottomNavBar.kt
 │   │   ├── QueueSheet.kt
-│   │   ├── SleepTimerDialog.kt
-│   │   ├── AddToPlaylistDialog.kt
+│   │   ├── SleepTimerDialog.kt      # ModalBottomSheet
+│   │   ├── AddToPlaylistDialog.kt   # ModalBottomSheet
 │   │   ├── SongContextMenu.kt
 │   │   ├── LyricsOverlay.kt
 │   │   └── ShimmerLoading.kt
+│   ├── engine/                      # Motion/animation engines
+│   │   └── MotionEngine.kt
+│   ├── visual/                      # Visual effects engine
+│   │   └── VisualEngine.kt
+│   ├── zero/                        # Zero-UI overlay system
+│   ├── gesture/                     # Gesture engine
+│   ├── galaxy/                      # Music Galaxy visualization
+│   ├── genome/                      # Music Genome system
+│   ├── timemachine/                 # Time Machine feature
 │   ├── navigation/
 │   │   └── Screen.kt               # Bottom nav enum + routes
 │   └── theme/                       # Material 3 theme + design system
@@ -140,7 +163,8 @@ app/src/main/kotlin/com/musicflow/app/
 │       ├── DesignTokens.kt          # MFTokens (spacing, radius, elevation, animation)
 │       ├── GlassEffect.kt           # MFGlass (glassmorphism composables)
 │       ├── AnimatedComponents.kt    # MFAnimations (pressScale, glow, mfRipple)
-│       └── DynamicColors.kt         # MFDynamicColors (Palette extraction)
+│       ├── DynamicColors.kt         # MFDynamicColors (Palette extraction)
+│       └── DynamicThemeEngine.kt    # Runtime artwork-based theme
 │
 ├── utils/
 │   ├── ThemePreferences.kt
@@ -167,7 +191,7 @@ app/src/main/kotlin/com/musicflow/app/
 └── build.gradle.kts
 ```
 
-**Total source files:** ~82 Kotlin files
+**Total source files:** ~130 Kotlin files
 
 ---
 
@@ -218,9 +242,9 @@ app/src/main/kotlin/com/musicflow/app/
 
 ## 4. Data Layer — Room Database
 
-**Database:** `AppDatabase` (Room, **version 9**, `fallbackToDestructiveMigration()`)
+**Database:** `AppDatabase` (Room, **version 12**, `fallbackToDestructiveMigration()`)
 
-### Entities (9)
+### Entities (10)
 
 | Entity | Table | Key Fields |
 |--------|-------|------------|
@@ -233,8 +257,9 @@ app/src/main/kotlin/com/musicflow/app/
 | `QueueEntity` | `queue` | `id` (auto PK), songId, position, addedAt, title, artist, artworkUrl, resolvedStreamingUrl, currentItemIndex, playbackPositionMs, isShuffleOn, repeatMode |
 | `OfflineTrackEntity` | `offline_tracks` | `songId` (PK), title, artist, artworkUrl, localFilePath, fileSize, downloadedAt |
 | `DownloadQueueEntity` | `download_queue` | `songId` (PK), status, progress, speed, totalBytes, downloadedBytes, retryCount |
+| `MusicGraphEntity` | `music_graph` | `songId` (PK), embedding (JSON), relationships (JSON), lastAnalyzed |
 
-### DAOs (8)
+### DAOs (11)
 
 | DAO | Key Queries |
 |-----|------------|
@@ -246,6 +271,8 @@ app/src/main/kotlin/com/musicflow/app/
 | `QueueDao` | `getAll()`, `saveQueue()`, `clearAll()` |
 | `OfflineTrackDao` | `getAll()`, `getById()`, `insert()`, `delete()` |
 | `DownloadQueueDao` | `observeAll()`, `observeActive()`, `getNextQueued()`, `updateProgress()`, `markFailed()`, `markCompleted()`, `retry()`, `cancel()` |
+| `MusicGraphDao` | `observeAll()`, `getById()`, `upsert()`, `delete()`, `getRecent()` |
+| `ListeningEventDao` | `insert()`, `observeRecent()`, `getBySongId()` |
 
 ### Data Flow
 
@@ -573,11 +600,11 @@ Deep Links:
 
 | Component | Used In | Description |
 |-----------|---------|-------------|
-| `MiniPlayer` | `MainActivity` | Persistent bottom bar showing current track, play/pause, progress |
-| `MainPlayerScreen` | `MainActivity` | Full-screen player with seek, like, shuffle, loop, lyrics, sleep timer, queue |
+| `MiniPlayer` | `MainActivity` | Floating compact card (20dp radius), 44dp artwork, 2dp progress bar, 42dp play button, press feedback, equalizer bars |
+| `MainPlayerScreen` | `MainActivity` | Full-screen player: dynamic accent colors throughout, symmetric transport controls, custom progress track with animated thumb, artwork-derived palette |
 | `QueueSheet` | `MainActivity` | Bottom sheet showing upcoming tracks |
-| `SleepTimerDialog` | `MainActivity` | Timer duration picker |
-| `AddToPlaylistDialog` | `MainActivity` | Playlist selection + create new |
+| `SleepTimerDialog` | `MainActivity` | Compact `ModalBottomSheet` — 3-column preset grid, custom input, drag handle, content-based height |
+| `AddToPlaylistDialog` | `MainActivity` | Compact `ModalBottomSheet` — create button, scrollable playlist list, empty state, drag handle, content-based height |
 | `SongContextMenu` | `MainActivity` | Long-press menu with all track actions |
 | `LyricsOverlay` | `MainPlayerScreen` | Scrolling lyrics display |
 | `ShimmerLoading` | Various | Skeleton loading animation |

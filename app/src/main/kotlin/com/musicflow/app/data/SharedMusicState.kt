@@ -7,6 +7,8 @@ import com.musicflow.app.data.local.dao.TrackDao
 import com.musicflow.app.data.local.entity.FavoriteEntity
 import com.musicflow.app.data.local.entity.PlaylistEntity
 import com.musicflow.app.data.local.entity.TrackEntity
+import com.musicflow.app.data.repository.MusicMemoryRepository
+import com.musicflow.app.domain.memory.MusicMemoryEventType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -45,6 +47,7 @@ class SharedMusicState @Inject constructor(
     private val trackDao: TrackDao,
     private val favoriteDao: FavoriteDao,
     private val playlistDao: PlaylistDao,
+    private val musicMemoryRepository: MusicMemoryRepository,
 ) {
     companion object {
         private const val TAG = "SharedMusicState"
@@ -184,6 +187,10 @@ class SharedMusicState @Inject constructor(
                     Log.d(TAG, "Removed favorite: $songId")
                 } else {
                     favoriteDao.addFavorite(FavoriteEntity(songId = songId))
+                    musicMemoryRepository.recordLibraryAction(
+                        MusicMemoryEventType.FAVORITED,
+                        songId,
+                    )
                     Log.d(TAG, "Added favorite: $songId")
                 }
             } catch (e: Exception) {
@@ -250,6 +257,10 @@ class SharedMusicState @Inject constructor(
         scope.launch(Dispatchers.IO) {
             try {
                 playlistDao.addTrackToPlaylistAtomic(playlistId, songId)
+                musicMemoryRepository.recordLibraryAction(
+                    MusicMemoryEventType.PLAYLIST_ADDED,
+                    songId,
+                )
                 Log.d(TAG, "Added track $songId to playlist $playlistId")
             } catch (e: Exception) {
                 Log.e(TAG, "addTrackToPlaylist failed: ${e.message}")

@@ -4,20 +4,24 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.musicflow.app.data.local.dao.DownloadQueueDao
 import com.musicflow.app.data.local.dao.FavoriteDao
 import com.musicflow.app.data.local.dao.LyricsDao
+import com.musicflow.app.data.local.dao.ListeningEventDao
+import com.musicflow.app.data.local.dao.MusicGraphDao
 import com.musicflow.app.data.local.dao.OfflineTrackDao
 import com.musicflow.app.data.local.dao.PlaylistDao
 import com.musicflow.app.data.local.dao.QueueDao
 import com.musicflow.app.data.local.dao.SearchHistoryDao
 import com.musicflow.app.data.local.dao.TrackDao
-import com.musicflow.app.data.local.dao.DownloadQueueDao
 import com.musicflow.app.data.local.entity.DownloadQueueEntity
 import com.musicflow.app.data.local.entity.FavoriteEntity
 import com.musicflow.app.data.local.entity.LyricsEntity
+import com.musicflow.app.data.local.entity.ListeningEventEntity
 import com.musicflow.app.data.local.entity.OfflineTrackEntity
 import com.musicflow.app.data.local.entity.PlaylistEntity
 import com.musicflow.app.data.local.entity.PlaylistTrackMap
+import com.musicflow.app.data.local.entity.MusicGraphEntity
 import com.musicflow.app.data.local.entity.QueueEntity
 import com.musicflow.app.data.local.entity.SearchHistoryEntity
 import com.musicflow.app.data.local.entity.TrackEntity
@@ -62,8 +66,10 @@ import com.musicflow.app.data.local.entity.TrackEntity
         QueueEntity::class,
         OfflineTrackEntity::class,
         DownloadQueueEntity::class,
+        ListeningEventEntity::class,
+        MusicGraphEntity::class,
     ],
-    version = 9,
+    version = 12,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -83,6 +89,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun offlineTrackDao(): OfflineTrackDao
 
     abstract fun downloadQueueDao(): DownloadQueueDao
+
+    abstract fun listeningEventDao(): ListeningEventDao
+
+    abstract fun musicGraphDao(): MusicGraphDao
 
     companion object {
 

@@ -2,9 +2,10 @@ package com.musicflow.app.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,14 +25,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.musicflow.app.ui.navigation.Screen
 import com.musicflow.app.ui.theme.MFColors
-import com.musicflow.app.ui.theme.MFGlass
-import com.musicflow.app.ui.theme.MFTokens
 
 @Composable
 fun MusicFlowBottomNavBar(
@@ -38,15 +40,38 @@ fun MusicFlowBottomNavBar(
     onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    MFGlass.BottomNavGlass(
+    val navShape = RoundedCornerShape(24.dp)
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 6.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .shadow(
+                elevation = 8.dp,
+                shape = navShape,
+                ambientColor = Color.Black.copy(alpha = 0.5f),
+                spotColor = Color.Black.copy(alpha = 0.3f),
+            )
+            .clip(navShape)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.08f),
+                        Color.White.copy(alpha = 0.03f),
+                    )
+                )
+            )
+            .border(
+                width = 0.5.dp,
+                color = MFColors.GlassBorder,
+                shape = navShape,
+            ),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 2.dp),
+                .height(52.dp)
+                .padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -89,24 +114,15 @@ private fun NavBarItem(
         label = "textColor",
     )
 
-    val iconScale by animateFloatAsState(
-        targetValue = if (isSelected) 1.12f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessHigh,
-        ),
-        label = "iconScale",
-    )
-
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(12.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
             )
-            .padding(vertical = 4.dp),
+            .padding(vertical = 2.dp),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -117,26 +133,21 @@ private fun NavBarItem(
                 if (isSelected) {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MFColors.Accent.copy(alpha = 0.12f))
+                            .size(30.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(MFColors.Accent.copy(alpha = 0.10f))
                     )
                 }
                 Icon(
                     imageVector = if (isSelected) screen.selectedIcon else screen.unselectedIcon,
                     contentDescription = screen.label,
                     tint = iconColor,
-                    modifier = Modifier
-                        .size(22.dp)
-                        .then(
-                            if (isSelected) Modifier.size((22 * iconScale).dp)
-                            else Modifier
-                        ),
+                    modifier = Modifier.size(20.dp),
                 )
             }
             Text(
                 text = screen.label,
-                fontSize = 9.sp,
+                fontSize = 10.sp,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                 color = textColor,
                 modifier = Modifier.padding(top = 2.dp),

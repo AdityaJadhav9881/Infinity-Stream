@@ -38,7 +38,7 @@ class PlayerSettingsManager @Inject constructor(
     }
 
     val equalizerPreset: Flow<String> = context.playerDataStore.data.map { prefs ->
-        prefs[EQUALIZER_PRESET_KEY] ?: "NORMAL"
+        prefs[EQUALIZER_PRESET_KEY] ?: "BASS_BOOST"
     }
 
     suspend fun setSkipSilence(enabled: Boolean) {

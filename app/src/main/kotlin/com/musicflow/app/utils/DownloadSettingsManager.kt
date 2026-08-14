@@ -31,7 +31,7 @@ class DownloadSettingsManager @Inject constructor(
     }
 
     val wifiOnly: Flow<Boolean> = context.downloadDataStore.data.map { prefs ->
-        prefs[WIFI_ONLY_KEY] ?: true
+        prefs[WIFI_ONLY_KEY] ?: false
     }
 
     val autoDownloadLiked: Flow<Boolean> = context.downloadDataStore.data.map { prefs ->

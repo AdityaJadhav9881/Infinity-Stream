@@ -25,7 +25,9 @@ import androidx.media3.extractor.mp4.FragmentedMp4Extractor
 import androidx.media3.extractor.mp4.Mp4Extractor
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import com.musicflow.app.data.TrackMetadata
 import com.musicflow.app.data.remote.AudioHeaderStore
+import com.musicflow.app.audio.AudioAnalysisEngine
 import com.musicflow.app.utils.EqualizerManager
 import com.musicflow.app.utils.PlayerSettingsManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -97,7 +99,13 @@ class MusicPlaybackService : MediaSessionService() {
 
     @Inject lateinit var playerSettingsManager: PlayerSettingsManager
 
+    @Inject lateinit var musicMemoryEngine: MusicMemoryEngine
+
+    @Inject lateinit var audioAnalysisEngine: AudioAnalysisEngine
+
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var lastPlaybackPositionMs = 0L
+    private var lastPlaybackDurationMs = 0L
 
     // ── Lifecycle ─────────────────────────────────────────────────────────
 
@@ -354,11 +362,16 @@ class MusicPlaybackService : MediaSessionService() {
     private inner class PlayerEventListener : Player.Listener {
 
         override fun onPlaybackStateChanged(playbackState: Int) {
+            snapshotPlaybackPosition()
             when (playbackState) {
                 Player.STATE_IDLE -> Log.d(TAG, "Playback: IDLE")
                 Player.STATE_BUFFERING -> Log.d(TAG, "Playback: BUFFERING")
                 Player.STATE_READY -> Log.d(TAG, "Playback: READY")
                 Player.STATE_ENDED -> {
+                    musicMemoryEngine.onPlaybackCompleted(
+                        lastPlaybackPositionMs,
+                        lastPlaybackDurationMs,
+                    )
                     Log.d(TAG, "Playback: ENDED")
                 }
             }
@@ -367,6 +380,8 @@ class MusicPlaybackService : MediaSessionService() {
         override fun onPlayerError(error: PlaybackException) {
             Log.e(TAG, "Playback error: ${error.errorCodeName}", error)
             val player = exoPlayer ?: return
+            snapshotPlaybackPosition()
+            musicMemoryEngine.onPlaybackError(lastPlaybackPositionMs, lastPlaybackDurationMs)
             // Skip to next track on error — never let playback stop on a bad track
             if (player.hasNextMediaItem()) {
                 Log.w(TAG, "Skipping to next track after error")
@@ -380,14 +395,25 @@ class MusicPlaybackService : MediaSessionService() {
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val nextTrack = mediaItem?.let(TrackMetadata::fromMediaItem)
+            musicMemoryEngine.onTrackTransition(
+                nextTrack = nextTrack,
+                isPlaying = exoPlayer?.isPlaying == true,
+                endedNaturally = reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO,
+                previousPositionMs = lastPlaybackPositionMs,
+                previousDurationMs = lastPlaybackDurationMs,
+            )
             val id = mediaItem?.mediaId ?: "null"
             currentSongId = mediaItem?.mediaId ?: ""
+            lastPlaybackPositionMs = 0L
+            lastPlaybackDurationMs = 0L
             Log.d(TAG, "Media transition → $id (reason=$reason)")
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             Log.d(TAG, "isPlaying=$isPlaying")
             if (isPlaying) {
+                musicMemoryEngine.onPlaybackStarted()
                 // AudioTrack is now active — safe to create audio effects.
                 exoPlayer?.let { p ->
                     val sessionId = p.audioSessionId
@@ -395,11 +421,30 @@ class MusicPlaybackService : MediaSessionService() {
                         equalizerManager.initialize(sessionId)
                     }
                 }
+            } else {
+                snapshotPlaybackPosition()
+                musicMemoryEngine.onPlaybackPaused(lastPlaybackPositionMs, lastPlaybackDurationMs)
+            }
+        }
+
+        override fun onPositionDiscontinuity(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int,
+        ) {
+            if (oldPosition.mediaItemIndex != newPosition.mediaItemIndex) {
+                lastPlaybackPositionMs = oldPosition.positionMs.coerceAtLeast(0L)
             }
         }
     }
 
     // ── Resource Cleanup ──────────────────────────────────────────────────
+
+    private fun snapshotPlaybackPosition() {
+        val player = exoPlayer ?: return
+        lastPlaybackPositionMs = player.currentPosition.coerceAtLeast(0L)
+        lastPlaybackDurationMs = player.duration.coerceAtLeast(0L)
+    }
 
     private fun releaseResources() {
         serviceScope.cancel()

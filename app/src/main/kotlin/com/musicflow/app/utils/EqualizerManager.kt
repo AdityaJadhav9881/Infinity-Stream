@@ -36,7 +36,7 @@ class EqualizerManager @Inject constructor(
     private var equalizer: Equalizer? = null
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var currentSessionId: Int = -1
-    private var currentPreset: EqualizerPreset = EqualizerPreset.NORMAL
+    private var currentPreset: EqualizerPreset = EqualizerPreset.BASS_BOOST
     private var volumeNormalizationEnabled: Boolean = false
 
     fun initialize(audioSessionId: Int) {

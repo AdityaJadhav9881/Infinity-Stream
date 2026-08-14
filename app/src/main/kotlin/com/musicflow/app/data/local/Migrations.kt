@@ -35,5 +35,43 @@ object Migrations {
         }
     }
 
-    val ALL_MIGRATIONS = arrayOf(MIGRATION_7_8, MIGRATION_8_9)
+    /**
+     * Migration from version 9 to 10.
+     *
+     * Music Memory stores immutable listening events separately from the
+     * mutable track cache, preserving a timeline even when metadata changes.
+     */
+    val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `listening_events` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `track_id` TEXT NOT NULL,
+                    `event_type` TEXT NOT NULL,
+                    `occurred_at` INTEGER NOT NULL,
+                    `position_ms` INTEGER NOT NULL,
+                    `duration_ms` INTEGER NOT NULL,
+                    `title` TEXT NOT NULL,
+                    `artist` TEXT NOT NULL,
+                    `artwork_url` TEXT NOT NULL
+                )
+                """.trimIndent(),
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_listening_events_track_id` ON `listening_events` (`track_id`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_listening_events_occurred_at` ON `listening_events` (`occurred_at`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_listening_events_track_id_occurred_at` ON `listening_events` (`track_id`, `occurred_at`)")
+        }
+    }
+
+    /** Adds measured active listening time to each immutable memory event. */
+    val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE `listening_events` ADD COLUMN `listened_ms` INTEGER NOT NULL DEFAULT 0",
+            )
+        }
+    }
+
+    val ALL_MIGRATIONS = arrayOf(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
 }

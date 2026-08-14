@@ -560,16 +560,16 @@ private fun HeroHeader(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = getGreeting(),
-                    fontSize = MFTokens.HeroTextSize,
+                    fontSize = 28.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = MFColors.TextPrimary,
-                    letterSpacing = (-1.5).sp,
-                    lineHeight = 44.sp,
+                    letterSpacing = (-1).sp,
+                    lineHeight = 34.sp,
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Continue where you left off.",
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     color = MFColors.TextTertiary,
                     fontWeight = FontWeight.Normal,
                 )
@@ -718,7 +718,7 @@ private fun QuickActionCard(
 
     MFGlass.GlassPanel(
         modifier = modifier
-            .height(MFTokens.QuickActionHeight)
+            .height(72.dp)
             .scale(scale)
             .clickable(
                 interactionSource = interactionSource,
@@ -729,34 +729,34 @@ private fun QuickActionCard(
         alpha = 0.08f,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(accentColor.copy(alpha = 0.12f))
-                    .border(width = 0.5.dp, color = accentColor.copy(alpha = 0.15f), shape = RoundedCornerShape(12.dp)),
+                    .border(width = 0.5.dp, color = accentColor.copy(alpha = 0.15f), shape = RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
                     tint = accentColor,
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(18.dp),
                 )
             }
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
                     text = title,
-                    fontSize = MFTokens.CardTitleSize,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MFColors.TextPrimary,
                     letterSpacing = (-0.2).sp,
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(1.dp))
                 Text(
                     text = subtitle,
                     fontSize = MFTokens.CardSubtitleSize,
