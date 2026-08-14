@@ -450,8 +450,8 @@ class MusicPlaybackService : MediaSessionService() {
         serviceScope.cancel()
         equalizerManager.release()
         mediaSession?.run {
-            player.release()
             release()
+            player.release()
         }
         mediaSession = null
         exoPlayer = null

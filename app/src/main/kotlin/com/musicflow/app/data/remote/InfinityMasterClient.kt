@@ -13,6 +13,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import javax.inject.Inject
@@ -164,13 +165,13 @@ class InfinityMasterClient @Inject constructor(
         }
         val text = response.bodyAsText()
         val obj = json.parseToJsonElement(text) as JsonObject
-        val available = obj["updateAvailable"]?.toString()?.toBooleanStrictOrNull() ?: false
+        val available = obj["updateAvailable"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: false
         if (!available) return@runCatching null
         UpdateInfo(
-            version = obj["version"]?.toString()?.removeSurrounding("\"") ?: "",
-            releaseNotes = obj["releaseNotes"]?.toString()?.removeSurrounding("\"") ?: "",
-            downloadUrl = obj["downloadUrl"]?.toString()?.removeSurrounding("\"") ?: "",
-            forced = obj["forced"]?.toString()?.toBooleanStrictOrNull() ?: false
+            version = obj["version"]?.jsonPrimitive?.content ?: "",
+            releaseNotes = obj["releaseNotes"]?.jsonPrimitive?.content ?: "",
+            downloadUrl = obj["downloadUrl"]?.jsonPrimitive?.content ?: "",
+            forced = obj["forced"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: false
         )
     }
 

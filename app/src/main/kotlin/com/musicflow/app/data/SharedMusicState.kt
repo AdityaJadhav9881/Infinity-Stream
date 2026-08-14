@@ -175,7 +175,7 @@ class SharedMusicState @Inject constructor(
     }
 
     /**
-     * Toggles favorite status. Returns the new state.
+     * Toggles favorite status.
      * This is the SINGLE entry point for all favorite operations.
      */
     fun toggleFavorite(songId: String) {
@@ -251,11 +251,23 @@ class SharedMusicState @Inject constructor(
     }
 
     /**
-     * Adds a track to a playlist.
+     * Adds a track to a playlist. Also ensures the track metadata
+     * exists in the tracks table so the JOIN query returns results.
      */
-    fun addTrackToPlaylist(playlistId: Long, songId: String) {
+    fun addTrackToPlaylist(playlistId: Long, songId: String, title: String = "", artist: String = "", artworkUrl: String = "") {
         scope.launch(Dispatchers.IO) {
             try {
+                // Upsert track metadata so observePlaylistTracks JOIN works
+                if (title.isNotBlank() || artist.isNotBlank()) {
+                    trackDao.upsertTrack(
+                        TrackEntity(
+                            songId = songId,
+                            title = title,
+                            artist = artist,
+                            artworkUrl = artworkUrl,
+                        )
+                    )
+                }
                 playlistDao.addTrackToPlaylistAtomic(playlistId, songId)
                 musicMemoryRepository.recordLibraryAction(
                     MusicMemoryEventType.PLAYLIST_ADDED,

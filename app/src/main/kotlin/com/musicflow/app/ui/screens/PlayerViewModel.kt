@@ -234,17 +234,25 @@ class PlayerViewModel @Inject constructor(
 
     fun skipToPrevious() {
         mediaController?.let { controller ->
+            Log.i(TAG, "skipToPrevious: pos=${controller.currentPosition}, itemCount=${controller.mediaItemCount}")
             if (controller.currentPosition > 3_000) controller.seekTo(0)
-            else controller.seekToPrevious()
+            else if (controller.hasPreviousMediaItem()) controller.seekToPrevious()
+            else controller.seekTo(0)
         }
         updateStateFromController()
     }
 
     fun skipToNext() {
-        val controller = mediaController ?: return
+        val controller = mediaController ?: run {
+            Log.e(TAG, "skipToNext: mediaController is NULL")
+            return
+        }
+        Log.i(TAG, "skipToNext: hasNext=${controller.hasNextMediaItem()}, itemCount=${controller.mediaItemCount}, index=${controller.currentMediaItemIndex}")
         if (controller.hasNextMediaItem()) {
             controller.seekToNext()
             updateStateFromController()
+        } else {
+            Log.w(TAG, "skipToNext: no next item in queue (size=${controller.mediaItemCount})")
         }
     }
 

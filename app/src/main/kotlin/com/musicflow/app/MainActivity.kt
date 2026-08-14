@@ -959,12 +959,7 @@ private fun MusicFlowApp(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MFColors.Background)
-                        .clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() },
-                            onClick = {}
-                        ),
+                        .background(MFColors.Background),
                 ) {
                     MainPlayerScreen(
                         track = playerUiState.currentTrack,
@@ -1027,7 +1022,7 @@ private fun MusicFlowApp(
                     playlists = playlistUiState.playlists,
                     onDismiss = { showAddToPlaylistDialog = false; addToPlaylistTrack = null },
                     onPlaylistSelected = { playlistId ->
-                        addToPlaylistTrack?.let { playlistViewModel.addTrackToPlaylist(playlistId, it.videoId) }
+                        addToPlaylistTrack?.let { playlistViewModel.addTrackToPlaylist(playlistId, it.videoId, it.title, it.artist, it.thumbnailUrl) }
                         showAddToPlaylistDialog = false; addToPlaylistTrack = null
                     },
                     onCreatePlaylist = { name -> playlistViewModel.createPlaylist(name) },

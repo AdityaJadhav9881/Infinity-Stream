@@ -54,8 +54,8 @@ class PlaylistViewModel @Inject constructor(
         sharedMusicState.deletePlaylist(playlistId)
     }
 
-    fun addTrackToPlaylist(playlistId: Long, songId: String) {
-        sharedMusicState.addTrackToPlaylist(playlistId, songId)
+    fun addTrackToPlaylist(playlistId: Long, songId: String, title: String = "", artist: String = "", artworkUrl: String = "") {
+        sharedMusicState.addTrackToPlaylist(playlistId, songId, title, artist, artworkUrl)
     }
 
     fun removeTrackFromPlaylist(playlistId: Long, songId: String) {

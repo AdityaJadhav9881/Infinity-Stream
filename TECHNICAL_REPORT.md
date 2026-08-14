@@ -885,6 +885,20 @@ YouTube's CDN requires specific cookies and PoToken headers. Without them, reque
 | Hardcoded year in trending | `loadTrending()` used hardcoded `"2024"` | Changed to `Calendar.getInstance().get(YEAR)` |
 | Downloads filter showed all tracks | `LibraryViewModel` DOWNLOADS filter didn't check offline status | Now filters by `offlineTracks` set |
 
+### Critical Bugs (Session 6 — August 14, 2026)
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| Full player buttons unresponsive | Box wrapping `MainPlayerScreen` had `.clickable(onClick = {})` that swallowed all touch events | Removed empty clickable modifier |
+| Playlist tracks not showing | `addTrackToPlaylist()` only wrote to `playlist_track_map` but not `tracks` table; JOIN query returned empty | Added `trackDao.upsertTrack()` before playlist mapping insert; updated callers to pass title/artist/artwork |
+| Downloads hidden by 2GB limit | Hardcoded `DEFAULT_MAX_BYTES = 2L * 1024 * 1024 * 1024` and `2048.0` in storage calculations | Removed artificial limit, progress bar, and remaining storage display |
+| Swipe gestures firing multiple times | `detectDragGestures` callback fires every frame exceeding threshold | Added `swipeFired` consumed flag, resets on drag end/cancel |
+| QueueSheet crash on duplicates | LazyColumn key used `songId` but queue can have duplicates | Changed key to `"${item.songId}_$index"` |
+| App update check always failed | `JsonPrimitive.toString()` wraps in quotes; `toBooleanStrictOrNull()` can't parse `"\"true\""` | Uses `jsonPrimitive.content` for raw value extraction |
+| MediaSession release order wrong | `player.release()` called before `mediaSession.release()` | Reversed: session first, then player |
+| Progress bar seek broken | `ProgressSection` had no `pointerInput` — display-only, no touch handling | Added `detectDragGestures` + `detectTapGestures`, single gesture overlay Box |
+| DownloadManager race condition | Multiple `processQueue()` calls read `activeCount` concurrently | Added `Mutex` lock to serialize queue processing |
+
 ---
 
 *Report generated from MusicFlow codebase analysis — 82 Kotlin source files, full coverage.*

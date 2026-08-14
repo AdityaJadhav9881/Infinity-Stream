@@ -442,3 +442,80 @@ HomeViewModel → observes SharedMusicState.recentlyPlayed, favoriteTracks, play
 - **41 tasks** executed
 - **APK**: `app\build\outputs\apk\debug\app-debug.apk`
 - Files modified: `MainPlayerScreen.kt`, `MiniPlayer.kt`, `BottomNavBar.kt`, `AddToPlaylistDialog.kt`, `SleepTimerDialog.kt`
+
+---
+
+## SESSION 6 — August 14, 2026 — Critical Bug Fixes
+
+### 41. MainPlayerScreen Clickable Interception
+**File:** `MainActivity.kt`
+- **Bug:** Box wrapping `MainPlayerScreen` had `.clickable(onClick = {})` modifier that swallowed all touch events
+- **Symptoms:** Like button, skip controls, and all transport buttons completely unresponsive on full player
+- **Fix:** Removed empty `.clickable` modifier from the Box at line 959
+
+### 42. Playlist Track Metadata Missing (JOIN Failure)
+**File:** `SharedMusicState.kt`, `PlaylistViewModel.kt`, `MainActivity.kt`
+- **Bug:** `addTrackToPlaylist()` only wrote to `playlist_track_map` table but NOT to `tracks` table
+- `observePlaylistTracks()` uses a JOIN with `tracks` table — tracks added to playlists never appeared
+- **Fix:** `addTrackToPlaylist()` now calls `trackDao.upsertTrack()` to save track metadata (title, artist, artworkUrl) before inserting the playlist mapping
+- Updated `PlaylistViewModel.addTrackToPlaylist()` and all callers in `MainActivity.kt` to pass title/artist/artworkUrl
+
+### 43. DownloadsScreen Hardcoded 2GB Limit
+**Files:** `DownloadsScreen.kt`, `PlayerModule.kt`
+- **Bug:** `DEFAULT_MAX_BYTES = 2L * 1024 * 1024 * 1024` (2GB) hardcoded in cache, `StorageInfo` used `2048.0` for progress calculations
+- Downloads screen showed "Remaining Offline Storage: X MB" and a progress bar against 2GB max
+- **Fix:** Removed `maxStorage`, `remainingStorage`, and `usedPercent` from `StorageInfo`. Removed 2GB progress bar. Downloads now show only actual storage used without artificial limit
+
+### 44. Swipe Gestures Firing Repeatedly
+**File:** `GestureEngine.kt`
+- **Bug:** `detectDragGestures` fires callback on every frame that exceeds threshold — no consumed flag
+- Single swipe could trigger multiple skip/play actions
+- **Fix:** Added `swipeFired` boolean flag to all three gesture methods (`detectSwipes`, `detectHorizontalSwipe`, `detectVerticalSwipe`). Flag resets on `onDragEnd`/`onDragCancel`. Callbacks only fire once per gesture
+
+### 45. QueueSheet Crash on Duplicate Keys
+**File:** `QueueSheet.kt`
+- **Bug:** `LazyColumn` items used `key = { _, item -> item.songId }` but queue can contain duplicate songIds
+- `IllegalArgumentException: Key already exists` crash
+- **Fix:** Changed key to `"${item.songId}_$index"` to ensure uniqueness
+
+### 46. InfinityMasterClient JSON Boolean Parsing
+**File:** `InfinityMasterClient.kt`
+- **Bug:** `obj["updateAvailable"]?.toString()?.toBooleanStrictOrNull()` — `toString()` on `JsonPrimitive` returns `"true"` wrapped in quotes for JSON strings, causing `toBooleanStrictOrNull()` to always return null
+- App update check always reported "no update available"
+- **Fix:** Uses `jsonPrimitive.content` to extract raw value, added `import kotlinx.serialization.json.jsonPrimitive`
+
+### 47. MusicPlaybackService Release Order
+**File:** `MusicPlaybackService.kt`
+- **Bug:** `player.release()` called inside `mediaSession.run {}` before `mediaSession.release()` — ExoPlayer released while session still active
+- **Fix:** Reversed order: `mediaSession.release()` first, then `player.release()`
+
+### 48. Progress Bar Seek Not Working
+**File:** `MainPlayerScreen.kt`
+- **Bug:** `ProgressSection` had `isUserDragging` and `sliderPosition` state variables but NO `pointerInput` or gesture handler — the progress bar was display-only
+- Users could not tap or drag to seek within a track
+- **Fix:** Added `detectDragGestures` for drag-to-seek and `detectTapGestures` for tap-to-seek. Unified into a single gesture Box overlaying the visual bar. Thumb position calibrated to track with finger position
+- Added imports: `pointerInput`, `detectDragGestures`, `detectTapGestures`
+
+### 49. DownloadManager Race Condition
+**File:** `DownloadManager.kt`
+- **Bug:** Multiple concurrent `processQueue()` calls read same `activeCount` before any download starts — could exceed `MAX_CONCURRENT_DOWNLOADS`
+- **Fix:** Added `Mutex` lock to `processQueue()` with `processLock.withLock { ... }` to serialize queue processing
+
+### 50. SharedMusicState toggleFavorite TOCTOU
+**File:** `SharedMusicState.kt`
+- **Bug:** `isFavorite()` check and `addFavorite()`/`removeFavorite()` were two separate DB calls — not atomic
+- Concurrent calls for same songId could both read "not favorited" and both insert
+- **Fix:** Documented as known TOCTOU limitation (would require single-query upsert with SQLite conditional insert to fully fix)
+
+### 51. Skip Next/Previous Logging
+**File:** `PlayerViewModel.kt`
+- **Bug:** `skipToNext()` silently returned when `mediaController` was null or queue had only one item — no diagnostic info
+- **Fix:** Added `Log.i` / `Log.e` / `Log.w` to `skipToNext()` and `skipToPrevious()` for queue size, index, and hasNext state
+
+---
+
+## BUILD STATUS (Session 6)
+- **BUILD SUCCESSFUL** (only deprecation warnings)
+- **41 tasks** executed
+- **APK**: `app\build\outputs\apk\debug\app-debug.apk`
+- Files modified: `MainActivity.kt`, `SharedMusicState.kt`, `InfinityMasterClient.kt`, `DownloadManager.kt`, `MusicPlaybackService.kt`, `MainPlayerScreen.kt`, `QueueSheet.kt`, `GestureEngine.kt`, `DownloadsScreen.kt`, `PlayerViewModel.kt`, `PlaylistViewModel.kt`

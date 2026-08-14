@@ -49,9 +49,6 @@ data class StorageInfo(
     val musicSize: String = "0 MB",
     val cacheSize: String = "64 MB",
     val artworkSize: String = "25 MB",
-    val totalSize: String = "0 MB",
-    val maxStorage: String = "2 GB",
-    val remainingStorage: String = "2 GB",
     val usedPercent: Float = 0f,
 )
 
@@ -94,12 +91,9 @@ fun DownloadsScreen(
         )
     }
     val storage = remember(offlineStorageUsedBytes) {
-        val usedMB = offlineStorageUsedBytes / (1024.0 * 1024.0)
         StorageInfo(
             musicSize = formatFileSize(offlineStorageUsedBytes),
-            totalSize = "${"%.0f".format(usedMB + 89)} MB",
-            remainingStorage = "${"%.1f".format(2048.0 - usedMB - 89)} MB",
-            usedPercent = ((usedMB + 89) / 2048.0 * 100).toFloat(),
+            usedPercent = 0f,
         )
     }
 
@@ -150,17 +144,11 @@ fun DownloadsScreen(
                         color = MFColors.TextSecondary
                     )
                     Text(
-                        text = "Storage Used: ${stats.storageUsed} / ${storage.maxStorage}",
-                        fontSize = 14.sp,
-                        color = MFColors.TextSecondary
-                    )
-                    Text(
-                        text = "Remaining Offline Storage: ${storage.remainingStorage}",
+                        text = "Storage Used: ${stats.storageUsed}",
                         fontSize = 14.sp,
                         color = MFColors.TextSecondary
                     )
                     Spacer(modifier = Modifier.height(14.dp))
-                    StorageProgressBar(percent = storage.usedPercent)
                 }
             }
 

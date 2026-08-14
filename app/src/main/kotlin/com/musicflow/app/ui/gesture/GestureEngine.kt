@@ -30,13 +30,16 @@ object GestureEngine {
         onSwipeRight: (() -> Unit)? = null,
         threshold: Float = 100f,
     ): Modifier = this.pointerInput(Unit) {
+        var swipeFired = false
         detectDragGestures(
-            onDragEnd = {},
-            onDragCancel = {},
+            onDragEnd = { swipeFired = false },
+            onDragCancel = { swipeFired = false },
             onDrag = { change, dragAmount ->
                 change.consume()
+                if (swipeFired) return@detectDragGestures
                 val (x, y) = dragAmount
                 if (kotlin.math.abs(x) > threshold || kotlin.math.abs(y) > threshold) {
+                    swipeFired = true
                     if (kotlin.math.abs(x) > kotlin.math.abs(y)) {
                         if (x > 0) onSwipeRight?.invoke() else onSwipeLeft?.invoke()
                     } else {
@@ -117,14 +120,17 @@ object GestureEngine {
         onSwipeRight: (() -> Unit)? = null,
         threshold: Float = 80f,
     ): Modifier = this.pointerInput(Unit) {
+        var swipeFired = false
         detectDragGestures(
-            onDragEnd = {},
-            onDragCancel = {},
+            onDragEnd = { swipeFired = false },
+            onDragCancel = { swipeFired = false },
             onDrag = { change, dragAmount ->
                 change.consume()
+                if (swipeFired) return@detectDragGestures
                 if (kotlin.math.abs(dragAmount.x) > threshold &&
                     kotlin.math.abs(dragAmount.x) > kotlin.math.abs(dragAmount.y) * 2f
                 ) {
+                    swipeFired = true
                     if (dragAmount.x > 0) onSwipeRight?.invoke() else onSwipeLeft?.invoke()
                 }
             },
@@ -144,14 +150,17 @@ object GestureEngine {
         onSwipeDown: (() -> Unit)? = null,
         threshold: Float = 80f,
     ): Modifier = this.pointerInput(Unit) {
+        var swipeFired = false
         detectDragGestures(
-            onDragEnd = {},
-            onDragCancel = {},
+            onDragEnd = { swipeFired = false },
+            onDragCancel = { swipeFired = false },
             onDrag = { change, dragAmount ->
                 change.consume()
+                if (swipeFired) return@detectDragGestures
                 if (kotlin.math.abs(dragAmount.y) > threshold &&
                     kotlin.math.abs(dragAmount.y) > kotlin.math.abs(dragAmount.x) * 2f
                 ) {
+                    swipeFired = true
                     if (dragAmount.y > 0) onSwipeDown?.invoke() else onSwipeUp?.invoke()
                 }
             },

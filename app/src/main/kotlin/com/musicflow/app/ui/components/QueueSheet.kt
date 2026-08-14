@@ -176,7 +176,7 @@ fun QueueSheet(
                 ) {
                     itemsIndexed(
                         items = upcomingTracks,
-                        key = { _, item -> item.songId },
+                        key = { index, item -> "${item.songId}_$index" },
                     ) { index, track ->
                         QueueTrackItem(
                             track = track,

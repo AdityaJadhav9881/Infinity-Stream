@@ -85,6 +85,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.palette.graphics.Palette
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
@@ -942,7 +945,7 @@ private fun ProgressSection(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(20.dp),
+                .height(24.dp),
             contentAlignment = Alignment.Center,
         ) {
             Box(
@@ -967,8 +970,28 @@ private fun ProgressSection(
 
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(20.dp),
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                isUserDragging = true
+                                val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                sliderPosition = fraction
+                            },
+                            onDragEnd = {
+                                isUserDragging = false
+                                onSeek((sliderPosition * duration).toLong())
+                            },
+                            onDragCancel = {
+                                isUserDragging = false
+                            },
+                            onDrag = { change, _ ->
+                                change.consume()
+                                val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                                sliderPosition = fraction
+                            },
+                        )
+                    },
                 contentAlignment = Alignment.CenterStart,
             ) {
                 Box(

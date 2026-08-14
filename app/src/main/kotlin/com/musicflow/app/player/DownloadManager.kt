@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -159,19 +161,23 @@ class DownloadManager @Inject constructor(
         return Result.failure(Exception("Download cancelled"))
     }
 
+    private val processLock = Mutex()
+
     /**
      * Processes the download queue, starting downloads up to the concurrency limit.
      */
     private fun processQueue() {
         scope.launch {
-            val activeCount = downloadQueueDao.getActiveDownloadCount()
-            if (activeCount >= MAX_CONCURRENT_DOWNLOADS) return@launch
+            processLock.withLock {
+                val activeCount = downloadQueueDao.getActiveDownloadCount()
+                if (activeCount >= MAX_CONCURRENT_DOWNLOADS) return@withLock
 
-            val slotsAvailable = MAX_CONCURRENT_DOWNLOADS - activeCount
-            val nextDownloads = downloadQueueDao.getNextQueued(slotsAvailable)
+                val slotsAvailable = MAX_CONCURRENT_DOWNLOADS - activeCount
+                val nextDownloads = downloadQueueDao.getNextQueued(slotsAvailable)
 
-            for (entity in nextDownloads) {
-                startDownload(entity)
+                for (entity in nextDownloads) {
+                    startDownload(entity)
+                }
             }
         }
     }
